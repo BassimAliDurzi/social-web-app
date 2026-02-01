@@ -1,4 +1,4 @@
-package com.socialwebapp.api;
+package com.socialwebapp;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
