@@ -25,6 +25,11 @@ jobs:
           java-version: "21"
           cache: maven
 
+      - name: Normalize mvnw for Linux
+        run: |
+          sed -i 's/\r$//' mvnw
+          chmod +x mvnw
+
       - name: Maven tests
         run: ./mvnw -q test
 
