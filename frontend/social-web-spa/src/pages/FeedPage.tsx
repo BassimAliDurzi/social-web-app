@@ -1,12 +1,22 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
 
 type PingResponse = {
   status: string;
 };
 
 export default function FeedPage() {
+  const auth = useAuth();
+  const navigate = useNavigate();
+
   const [status, setStatus] = useState<string>("loading...");
   const [error, setError] = useState<string | null>(null);
+
+  function onLogout() {
+    auth.logout();
+    navigate("/login", { replace: true });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -42,8 +52,21 @@ export default function FeedPage() {
 
   return (
     <div style={{ padding: 24 }}>
-      <h1>Feed</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <h1 style={{ margin: 0 }}>Feed</h1>
+        <button type="button" onClick={onLogout}>
+          Logout
+        </button>
+      </div>
+
       <p>Placeholder page for global fee.</p>
+
+      <hr style={{ margin: "16px 0" }} />
+
+      <h2>User</h2>
+      <pre style={{ padding: 12, overflow: "auto" }}>
+        {JSON.stringify(auth.user, null, 2)}
+      </pre>
 
       <hr style={{ margin: "16px 0" }} />
 
