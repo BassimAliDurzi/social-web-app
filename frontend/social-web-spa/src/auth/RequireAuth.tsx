@@ -10,7 +10,7 @@ export default function RequireAuth({ children }: Props) {
   const location = useLocation();
 
   if (auth.status === "idle" || auth.status === "loading") {
-    return null;
+    return <div style={{ padding: 24 }}>Loading...</div>;
   }
 
   if (!auth.isAuthenticated) {
