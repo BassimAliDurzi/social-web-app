@@ -1,15 +1,26 @@
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import RequireAuth from "./auth/RequireAuth";
+import LoginPage from "./pages/LoginPage";
+import FeedPage from "./pages/FeedPage";
 
-
-import './App.css'
-
-function App() {
-
-
+export default function App() {
   return (
-    <>
-      <h1>Welcome to the Social Web App</h1>
-    </>
-  )
-}
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
 
-export default App
+        <Route
+          path="/feed"
+          element={
+            <RequireAuth>
+              <FeedPage />
+            </RequireAuth>
+          }
+        />
+
+        <Route path="/" element={<Navigate to="/feed" replace />} />
+        <Route path="*" element={<Navigate to="/feed" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
