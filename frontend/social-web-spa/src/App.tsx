@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import RequireAuth from "./auth/RequireAuth";
-import LoginPage from "./pages/LoginPage";
 import FeedPage from "./pages/FeedPage";
+import LoginPage from "./pages/LoginPage";
 
 export default function App() {
   return (
@@ -11,6 +11,15 @@ export default function App() {
 
         <Route
           path="/feed"
+          element={
+            <RequireAuth>
+              <FeedPage />
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/wall"
           element={
             <RequireAuth>
               <FeedPage />
