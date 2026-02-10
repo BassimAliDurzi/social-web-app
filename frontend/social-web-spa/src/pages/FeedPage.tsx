@@ -4,9 +4,15 @@ import { getFeed, type FeedError } from "../features/feed/feedApi";
 import type { FeedItem } from "../features/feed/feedTypes";
 import { getAuthState } from "../auth/authStore";
 
+type PageInfo = {
+  page: number;
+  limit: number;
+  hasMore: boolean;
+};
+
 type LoadState =
   | { status: "loading" }
-  | { status: "ready"; items: FeedItem[] }
+  | { status: "ready"; items: FeedItem[]; pageInfo: PageInfo }
   | { status: "empty" }
   | { status: "error"; error: FeedError };
 
@@ -54,7 +60,7 @@ export default function FeedPage() {
             setState({ status: "empty" });
             return;
           }
-          setState({ status: "ready", items: res.items });
+          setState({ status: "ready", items: res.items, pageInfo: res.pageInfo });
         });
       } catch (e) {
         queueMicrotask(() => {
@@ -123,16 +129,23 @@ export default function FeedPage() {
       )}
 
       {state.status === "ready" && (
-        <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
-          {state.items.map((it) => (
-            <div key={it.id} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-                <div style={{ fontWeight: 600 }}>{it.author.displayName}</div>
-                <div style={{ opacity: 0.7, fontSize: 12 }}>{formatTime(it.createdAt)}</div>
+        <div style={{ marginTop: 16 }}>
+          <div style={{ display: "grid", gap: 12 }}>
+            {state.items.map((it) => (
+              <div key={it.id} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ fontWeight: 600 }}>{it.author.displayName}</div>
+                  <div style={{ opacity: 0.7, fontSize: 12 }}>{formatTime(it.createdAt)}</div>
+                </div>
+                <div style={{ marginTop: 10, whiteSpace: "pre-wrap" }}>{it.content}</div>
               </div>
-              <div style={{ marginTop: 10, whiteSpace: "pre-wrap" }}>{it.content}</div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          <div style={{ marginTop: 12, opacity: 0.7, fontSize: 12 }}>
+            Page {state.pageInfo.page} · Limit {state.pageInfo.limit} · Has more:{" "}
+            {state.pageInfo.hasMore ? "yes" : "no"}
+          </div>
         </div>
       )}
     </div>

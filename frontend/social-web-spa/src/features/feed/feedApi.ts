@@ -6,8 +6,15 @@ export type FeedQuery = {
   limit: number;
 };
 
+export type FeedPageInfo = {
+  page: number;
+  limit: number;
+  hasMore: boolean;
+};
+
 export type FeedResult = {
   items: FeedItem[];
+  pageInfo: FeedPageInfo;
 };
 
 export type FeedErrorCode = "unauthorized" | "not_found" | "network" | "server";
@@ -34,19 +41,31 @@ function toError(status: number): FeedError {
   return { code: "server", message: "Request Failed", status };
 }
 
-function mockFeed(): FeedResult {
+function mockFeed(q: FeedQuery): FeedResult {
   const iso = new Date().toISOString();
   return {
     items: [
       {
         kind: "post",
-        id: "mock-1",
+        id: `mock-${q.page}-1`,
         createdAt: iso,
         author: { id: "u-1", displayName: "Demo User" },
         content: "This is a temporary mock feed item.",
       },
     ],
+    pageInfo: { page: q.page, limit: q.limit, hasMore: false },
   };
+}
+
+function normalizeResult(q: FeedQuery, data: unknown): FeedResult {
+  if (typeof data === "object" && data && "items" in data) {
+    const d = data as { items: FeedItem[]; pageInfo?: FeedPageInfo };
+    return {
+      items: Array.isArray(d.items) ? d.items : [],
+      pageInfo: d.pageInfo ?? { page: q.page, limit: q.limit, hasMore: false },
+    };
+  }
+  return { items: [], pageInfo: { page: q.page, limit: q.limit, hasMore: false } };
 }
 
 export async function getFeed(q: FeedQuery): Promise<FeedResult> {
@@ -62,11 +81,11 @@ export async function getFeed(q: FeedQuery): Promise<FeedResult> {
     const res = await fetch(buildUrl(q), { method: "GET", headers });
 
     if (res.ok) {
-      const data = (await res.json()) as FeedResult;
-      return data;
+      const raw = (await res.json()) as unknown;
+      return normalizeResult(q, raw);
     }
 
-    if (res.status === 404) return mockFeed();
+    if (res.status === 404) return mockFeed(q);
 
     const err = toError(res.status);
 
