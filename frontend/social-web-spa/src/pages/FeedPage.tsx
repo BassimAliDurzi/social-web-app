@@ -12,7 +12,7 @@ type PageInfo = {
 
 type LoadState =
   | { status: "loading" }
-  | { status: "ready"; items: FeedItem[]; pageInfo: PageInfo }
+  | { status: "ready"; items: FeedItem[]; pageInfo: PageInfo; isLoadingMore: boolean }
   | { status: "empty" }
   | { status: "error"; error: FeedError };
 
@@ -40,6 +40,42 @@ export default function FeedPage() {
     setReloadKey((x) => x + 1);
   }, []);
 
+  const onLoadMore = useCallback(() => {
+    if (state.status !== "ready") return;
+    if (!state.pageInfo.hasMore) return;
+
+    const nextPage = state.pageInfo.page + 1;
+
+    setState({
+      status: "ready",
+      items: state.items,
+      pageInfo: state.pageInfo,
+      isLoadingMore: true,
+    });
+
+    void (async () => {
+      try {
+        const res = await getFeed({ page: nextPage, limit: state.pageInfo.limit });
+
+        queueMicrotask(() => {
+          setState((prev) => {
+            if (prev.status !== "ready") return prev;
+            return {
+              status: "ready",
+              items: [...prev.items, ...res.items],
+              pageInfo: res.pageInfo,
+              isLoadingMore: false,
+            };
+          });
+        });
+      } catch (e) {
+        queueMicrotask(() => {
+          setState({ status: "error", error: e as FeedError });
+        });
+      }
+    })();
+  }, [state]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -60,7 +96,7 @@ export default function FeedPage() {
             setState({ status: "empty" });
             return;
           }
-          setState({ status: "ready", items: res.items, pageInfo: res.pageInfo });
+          setState({ status: "ready", items: res.items, pageInfo: res.pageInfo, isLoadingMore: false });
         });
       } catch (e) {
         queueMicrotask(() => {
@@ -143,8 +179,13 @@ export default function FeedPage() {
           </div>
 
           <div style={{ marginTop: 12, opacity: 0.7, fontSize: 12 }}>
-            Page {state.pageInfo.page} · Limit {state.pageInfo.limit} · Has more:{" "}
-            {state.pageInfo.hasMore ? "yes" : "no"}
+            Page {state.pageInfo.page} · Limit {state.pageInfo.limit} · Has more: {state.pageInfo.hasMore ? "yes" : "no"}
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <button type="button" onClick={onLoadMore} disabled={!state.pageInfo.hasMore || state.isLoadingMore}>
+              {state.isLoadingMore ? "Loading..." : "Load more"}
+            </button>
           </div>
         </div>
       )}
