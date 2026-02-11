@@ -16,6 +16,7 @@ Thumbs.db
 target/
 !.mvn/wrapper/maven-wrapper.jar
 tmp/
+backend/social-web-api/tmp_login.json
 
 
 # --- Gradle (if used later) ---
