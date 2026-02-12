@@ -1,62 +1,84 @@
 package com.socialwebapp.infra;
 
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.InputStream;
-import java.net.Socket;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.boot.test.context.SpringBootTest;
 
-class PostgresAvailabilityTest {
+@SpringBootTest
+@ActiveProfiles("test")
+public class PostgresAvailabilityTest {
+
+    @Value("${spring.datasource.url}")
+    String datasourceUrl;
 
     @Test
-    void postgresMustBeReachableAtConfiguredHostPort() throws Exception {
-        String jdbcUrl = resolveJdbcUrl();
-        HostPort hp = parseHostPort(jdbcUrl);
+    void postgresMustBeReachableAtConfiguredHostPort() {
+        HostPort hp = parseHostPortFromJdbcUrl(datasourceUrl);
 
-        try (Socket socket = new Socket(hp.host, hp.port)) {
-            // ok
-        } catch (Exception ex) {
-            fail("PostgreSQL is not reachable at " + hp.host + ":" + hp.port + ". Start Postgres before running tests.");
+        boolean reachable = isTcpReachable(hp.host(), hp.port(), 1000);
+
+        assertTrue(
+                reachable,
+                "PostgreSQL is not reachable at " + hp.host() + ":" + hp.port()
+                        + ". Start Postgres before running tests. datasourceUrl=" + datasourceUrl
+        );
+    }
+
+    private static boolean isTcpReachable(String host, int port, int timeoutMillis) {
+        try (java.net.Socket socket = new java.net.Socket()) {
+            socket.connect(new java.net.InetSocketAddress(host, port), timeoutMillis);
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 
-    private static String resolveJdbcUrl() throws Exception {
-        String fromSysProp = System.getProperty("spring.datasource.url");
-        if (fromSysProp != null && !fromSysProp.isBlank()) {
-            return fromSysProp.trim();
+    private static HostPort parseHostPortFromJdbcUrl(String jdbcUrl) {
+        if (jdbcUrl == null || jdbcUrl.isBlank()) {
+            return new HostPort("localhost", 5432);
         }
 
-        Properties p = new Properties();
-        try (InputStream in = PostgresAvailabilityTest.class.getClassLoader()
-                .getResourceAsStream("application-test.properties")) {
-            if (in == null) {
-                throw new IllegalStateException("Missing application-test.properties on test classpath.");
+        String raw = jdbcUrl.trim();
+
+        // jdbc:postgresql://host:port/db?params
+        if (raw.startsWith("jdbc:postgresql:")) {
+            String withoutPrefix = raw.substring("jdbc:postgresql:".length());
+            if (withoutPrefix.startsWith("//")) {
+                String uriPart = withoutPrefix.substring(2);
+                int slash = uriPart.indexOf('/');
+                String authority = (slash >= 0) ? uriPart.substring(0, slash) : uriPart;
+
+                String host;
+                int port;
+
+                int colon = authority.lastIndexOf(':');
+                if (colon >= 0) {
+                    host = authority.substring(0, colon);
+                    port = Integer.parseInt(authority.substring(colon + 1));
+                } else {
+                    host = authority;
+                    port = 5432;
+                }
+
+                if (host.isBlank()) host = "localhost";
+                return new HostPort(host, port);
             }
-            p.load(in);
         }
 
-        String fromProps = p.getProperty("spring.datasource.url");
-        if (fromProps == null || fromProps.isBlank()) {
-            throw new IllegalStateException("spring.datasource.url is missing in application-test.properties.");
+        // Fallback: try URI parse after removing jdbc:
+        try {
+            String asUri = raw.startsWith("jdbc:") ? raw.substring(5) : raw;
+            URI uri = URI.create(asUri);
+            String host = (uri.getHost() == null || uri.getHost().isBlank()) ? "localhost" : uri.getHost();
+            int port = (uri.getPort() > 0) ? uri.getPort() : 5432;
+            return new HostPort(host, port);
+        } catch (Exception ignored) {
+            return new HostPort("localhost", 5432);
         }
-        return fromProps.trim();
-    }
-
-    private static HostPort parseHostPort(String jdbcUrl) {
-        String s = jdbcUrl;
-        if (s.startsWith("jdbc:")) {
-            s = s.substring("jdbc:".length());
-        }
-        URI uri = URI.create(s);
-        String host = uri.getHost() == null ? "localhost" : uri.getHost();
-        int port = uri.getPort();
-        if (port <= 0) {
-            port = 5432;
-        }
-        return new HostPort(host, port);
     }
 
     private record HostPort(String host, int port) {}
