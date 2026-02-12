@@ -1,0 +1,61 @@
+name: backend-tests
+
+on:
+  push:
+    paths:
+      - "backend/social-web-api/**"
+      - ".github/workflows/backend-tests.yml"
+  pull_request:
+    paths:
+      - "backend/social-web-api/**"
+      - ".github/workflows/backend-tests.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: social_web_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: bazi123
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d social_web_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "24"
+          cache: maven
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5433 -U postgres -d social_web_test; then
+              echo "Postgres is ready"
+              exit 0
+            fi
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
+          echo "Postgres not ready in time"
+          exit 1
+        env:
+          PGPASSWORD: bazi123
+
+      - name: Run tests
+        working-directory: backend/social-web-api
+        run: ./mvnw -q test
+        env:
+          SPRING_PROFILES_ACTIVE: test
