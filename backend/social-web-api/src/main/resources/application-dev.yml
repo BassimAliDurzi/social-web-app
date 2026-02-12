@@ -1,0 +1,4 @@
+security:
+  jwt:
+    issuer: social-web-api
+    secret: ${JWT_SECRET:dev-secret-change-me-please-32-chars-min}

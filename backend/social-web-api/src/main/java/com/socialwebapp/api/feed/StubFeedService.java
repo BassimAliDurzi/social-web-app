@@ -1,34 +1,38 @@
 package com.socialwebapp.api.feed;
 
-import com.socialwebapp.api.feed.data.FeedDataSource;
+import com.socialwebapp.api.feed.dto.AuthorDto;
+import com.socialwebapp.api.feed.dto.CreateFeedPostRequest;
 import com.socialwebapp.api.feed.dto.FeedItemDto;
 import com.socialwebapp.api.feed.dto.FeedResponse;
-import com.socialwebapp.api.feed.dto.PageInfoDto;
-import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.util.UUID;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+@Profile("stub")
 @Service
 public class StubFeedService implements FeedService {
 
-    private final FeedDataSource dataSource;
-
-    public StubFeedService(FeedDataSource dataSource) {
-        this.dataSource = dataSource;
+    @Override
+    public FeedResponse getFeed(int page, int limit) {
+        return new FeedResponse(java.util.List.of(), new com.socialwebapp.api.feed.dto.PageInfoDto(page, limit, false));
     }
 
     @Override
-    public FeedResponse getFeed(int page, int limit) {
-        List<FeedItemDto> all = dataSource.getAllItems();
-        int total = all.size();
-        int offset = (page - 1) * limit;
+    public FeedItemDto createFeedPost(String subject, CreateFeedPostRequest request) {
+        String kind = (request.kind() == null || request.kind().isBlank()) ? "post" : request.kind();
+        UUID authorId = UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
 
-        List<FeedItemDto> items =
-                offset >= total
-                        ? List.of()
-                        : all.subList(offset, Math.min(offset + limit, total));
+        AuthorDto author = new AuthorDto(authorId.toString(), subject);
 
-        boolean hasMore = offset + items.size() < total;
-
-        return new FeedResponse(items, new PageInfoDto(page, limit, hasMore));
+        return new FeedItemDto(
+                kind,
+                UUID.randomUUID().toString(),
+                DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
+                author,
+                request.content()
+        );
     }
 }
