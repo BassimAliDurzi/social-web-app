@@ -35,7 +35,22 @@ jobs:
 
       - name: Docker build (no push)
         run: docker build -t social-web-api:ci .
-
+        
+services:
+  postgres:
+    image: postgres:16
+    env:
+      POSTGRES_DB: social_web_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - 5433:5432
+    options: >-
+      --health-cmd "pg_isready -U postgres -d social_web_test"
+      --health-interval 10s
+      --health-timeout 5s
+      --health-retries 10
+      
   frontend:
     name: Frontend (build)
     runs-on: ubuntu-latest
