@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.net.URI;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -19,13 +19,34 @@ public class PostgresAvailabilityTest {
     void postgresMustBeReachableAtConfiguredHostPort() {
         HostPort hp = parseHostPortFromJdbcUrl(datasourceUrl);
 
-        boolean reachable = isTcpReachable(hp.host(), hp.port(), 1000);
+        boolean reachable = isTcpReachableWithRetries(hp.host(), hp.port(), 3000, 10, 300);
 
         assertTrue(
                 reachable,
                 "PostgreSQL is not reachable at " + hp.host() + ":" + hp.port()
-                        + ". Start Postgres before running tests. datasourceUrl=" + datasourceUrl
+                        + ". datasourceUrl=" + datasourceUrl
         );
+    }
+
+    private static boolean isTcpReachableWithRetries(
+            String host,
+            int port,
+            int timeoutMillis,
+            int attempts,
+            int sleepMillis
+    ) {
+        for (int i = 1; i <= attempts; i++) {
+            if (isTcpReachable(host, port, timeoutMillis)) {
+                return true;
+            }
+            try {
+                Thread.sleep(sleepMillis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return false;
     }
 
     private static boolean isTcpReachable(String host, int port, int timeoutMillis) {
@@ -44,7 +65,6 @@ public class PostgresAvailabilityTest {
 
         String raw = jdbcUrl.trim();
 
-        // jdbc:postgresql://host:port/db?params
         if (raw.startsWith("jdbc:postgresql:")) {
             String withoutPrefix = raw.substring("jdbc:postgresql:".length());
             if (withoutPrefix.startsWith("//")) {
@@ -69,7 +89,6 @@ public class PostgresAvailabilityTest {
             }
         }
 
-        // Fallback: try URI parse after removing jdbc:
         try {
             String asUri = raw.startsWith("jdbc:") ? raw.substring(5) : raw;
             URI uri = URI.create(asUri);
