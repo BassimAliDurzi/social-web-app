@@ -39,6 +39,12 @@ jobs:
           java-version: "24"
           cache: maven
 
+      - name: Normalize mvnw for Linux
+        working-directory: backend/social-web-api
+        run: |
+          sed -i 's/\r$//' mvnw
+          chmod +x mvnw
+
       - name: Wait for Postgres
         run: |
           for i in {1..30}; do
@@ -52,13 +58,15 @@ jobs:
           echo "Postgres not ready"
           exit 1
         env:
-          PGPASSWORD: bazi123
+          PGPASSWORD: postgres
 
       - name: Run tests
         working-directory: backend/social-web-api
         run: ./mvnw -q test
         env:
           SPRING_PROFILES_ACTIVE: test
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/social_web_test
-          SPRING_DATASOURCE_USERNAME: postgres
-          SPRING_DATASOURCE_PASSWORD: bazi123
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: "5432"
+          POSTGRES_DB: social_web_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
