@@ -3,29 +3,41 @@ package com.socialwebapp.infra;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest
-@ActiveProfiles("test")
 public class PostgresAvailabilityTest {
-
-    @Value("${spring.datasource.url}")
-    String datasourceUrl;
 
     @Test
     void postgresMustBeReachableAtConfiguredHostPort() {
-        HostPort hp = parseHostPortFromJdbcUrl(datasourceUrl);
+        String jdbcUrl = resolveJdbcUrl();
+        HostPort hp = parseHostPortFromJdbcUrl(jdbcUrl);
 
         boolean reachable = isTcpReachableWithRetries(hp.host(), hp.port(), 3000, 10, 300);
 
         assertTrue(
                 reachable,
                 "PostgreSQL is not reachable at " + hp.host() + ":" + hp.port()
-                        + ". datasourceUrl=" + datasourceUrl
+                        + ". jdbcUrl=" + jdbcUrl
         );
+    }
+
+    private static String resolveJdbcUrl() {
+        String direct = env("SPRING_DATASOURCE_URL").orElse(null);
+        if (direct != null && !direct.isBlank()) {
+            return direct;
+        }
+
+        String host = env("POSTGRES_HOST").orElse("localhost");
+        String port = env("POSTGRES_PORT").orElse("5433");
+        String db = env("POSTGRES_DB").orElse("social_web_test");
+        return "jdbc:postgresql://" + host + ":" + port + "/" + db;
+    }
+
+    private static Optional<String> env(String name) {
+        String v = System.getenv(name);
+        if (v == null || v.isBlank()) return Optional.empty();
+        return Optional.of(v);
     }
 
     private static boolean isTcpReachableWithRetries(
