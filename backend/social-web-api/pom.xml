@@ -82,7 +82,6 @@
             <scope>test</scope>
         </dependency>
 
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
@@ -101,6 +100,13 @@
             <version>${bytebuddy.agent.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -117,6 +123,18 @@
 
                     <systemPropertyVariables>
                         <spring.profiles.active>test</spring.profiles.active>
+
+                        <spring.datasource.url>jdbc:h2:mem:socialweb_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE</spring.datasource.url>
+                        <spring.datasource.username>sa</spring.datasource.username>
+                        <spring.datasource.password></spring.datasource.password>
+                        <spring.datasource.driver-class-name>org.h2.Driver</spring.datasource.driver-class-name>
+
+                        <spring.jpa.hibernate.ddl-auto>create-drop</spring.jpa.hibernate.ddl-auto>
+                        <spring.jpa.open-in-view>false</spring.jpa.open-in-view>
+
+                        <spring.flyway.enabled>false</spring.flyway.enabled>
+
+                        <app.jwt.secret>test-only-secret-test-only-secret-test-only-secret</app.jwt.secret>
                     </systemPropertyVariables>
 
                     <redirectTestOutputToFile>false</redirectTestOutputToFile>
@@ -126,5 +144,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>
