@@ -48,10 +48,15 @@ jobs:
       - name: Wait for Postgres
         run: |
           for i in {1..30}; do
-            pg_isready -h localhost -p 5432 -U postgres -d social_web_test && exit 0
+            if pg_isready -h localhost -p 5432 -U postgres -d social_web_test; then
+              echo "Postgres is ready"
+              exit 0
+            fi
+            echo "Waiting for Postgres..."
             sleep 2
           done
-          echo "Postgres not ready" && exit 1
+          echo "Postgres not ready"
+          exit 1
         env:
           PGPASSWORD: postgres
 
