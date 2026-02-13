@@ -101,6 +101,13 @@
             <version>${bytebuddy.agent.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -126,5 +133,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>
