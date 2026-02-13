@@ -1,67 +1,47 @@
 package com.socialwebapp.auth;
 
 import java.time.Instant;
-import java.util.Date;
-import java.util.List;
 
 import com.socialwebapp.security.JwtProperties;
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.crypto.MACSigner;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
 @Service
 public class TokenService {
 
+    public record TokenResponse(String accessToken, String tokenType) {}
+
+    private final JwtEncoder jwtEncoder;
     private final JwtProperties props;
 
-    public TokenService(JwtProperties props) {
+    public TokenService(JwtEncoder jwtEncoder, JwtProperties props) {
+        this.jwtEncoder = jwtEncoder;
         this.props = props;
     }
 
     public TokenResponse issue(Authentication auth) {
         Instant now = Instant.now();
-        Instant exp = now.plusSeconds(props.ttlSeconds());
 
-        List<String> roles = auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .map(a -> a.replaceFirst("^ROLE_", ""))
-                .toList();
-
-        JWTClaimsSet claims = new JWTClaimsSet.Builder()
+        JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(props.issuer())
-                .issueTime(Date.from(now))
-                .expirationTime(Date.from(exp))
+                .issuedAt(now)
+                .expiresAt(now.plusSeconds(props.ttlSeconds()))
                 .subject(auth.getName())
-                .claim("roles", roles)
                 .build();
 
-        String token = signHs256(claims, props.secret());
-        return new TokenResponse(token, "Bearer", props.ttlSeconds());
+        // ✅ Critical: set HS256 in header so NimbusJwtEncoder can select the signing key
+        JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256).build();
+
+        String tokenValue = jwtEncoder
+                .encode(JwtEncoderParameters.from(headers, claims))
+                .getTokenValue();
+
+        return new TokenResponse(tokenValue, "Bearer");
     }
-
-    private String signHs256(JWTClaimsSet claims, String rawSecret) {
-        try {
-            byte[] secretBytes = rawSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-
-            // HS256 requires sufficiently long secret; keep it >= 32 chars.
-            MACSigner signer = new MACSigner(secretBytes);
-
-            JWSHeader header = new JWSHeader(JWSAlgorithm.HS256);
-            SignedJWT jwt = new SignedJWT(header, claims);
-            jwt.sign(signer);
-
-            return jwt.serialize();
-        } catch (JOSEException e) {
-            throw new IllegalStateException("Failed to sign JWT (HS256).", e);
-        }
-    }
-
-    public record TokenResponse(String accessToken, String tokenType, long expiresIn) {}
 }
