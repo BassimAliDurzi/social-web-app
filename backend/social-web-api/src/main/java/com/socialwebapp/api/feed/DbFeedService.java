@@ -51,7 +51,7 @@ public class DbFeedService implements FeedService {
 
     @Override
     public FeedItemDto createFeedPost(String subject, CreateFeedPostRequest request) {
-        String kind = (request.kind() == null || request.kind().isBlank()) ? "post" : request.kind();
+        String kind = "post";
 
         UUID id = UUID.randomUUID();
         OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
