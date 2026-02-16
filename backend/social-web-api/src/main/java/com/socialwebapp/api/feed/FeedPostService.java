@@ -31,8 +31,7 @@ public class FeedPostService {
     public FeedPostEntity create(
             UUID authorId,
             String authorDisplayName,
-            String content,
-            String kind
+            String content
     ) {
         var id = UUID.randomUUID();
         var createdAt = OffsetDateTime.now(clock);
@@ -43,7 +42,7 @@ public class FeedPostService {
                 authorId,
                 authorDisplayName,
                 content,
-                kind
+                "post"
         );
 
         return repository.save(entity);
