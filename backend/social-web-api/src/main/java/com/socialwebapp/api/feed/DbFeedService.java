@@ -83,7 +83,7 @@ public class DbFeedService implements FeedService {
         );
 
         return new FeedItemDto(
-                p.getKind() == null || p.getKind().isBlank() ? "post" : p.getKind(),
+                "post",
                 String.valueOf(p.getId()),
                 createdAt,
                 author,
