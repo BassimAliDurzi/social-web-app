@@ -11,11 +11,19 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 @Profile("stub")
 @Service
 public class StubFeedService implements FeedService {
+
+    public StubFeedService(Environment env) {
+        boolean devLike = env.acceptsProfiles(org.springframework.core.env.Profiles.of("dev"));
+        if (!devLike) {
+            throw new IllegalStateException("The 'stub' profile is not allowed outside 'dev'.");
+        }
+    }
 
     @Override
     public FeedResponse getFeed(int page, int limit) {
