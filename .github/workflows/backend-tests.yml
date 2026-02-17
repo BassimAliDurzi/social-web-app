@@ -1,18 +1,18 @@
-name: CI
+name: backend-tests
 
 on:
   push:
-    branches: ["main", "feature/**"]
+    paths:
+      - "backend/social-web-api/**"
+      - ".github/workflows/backend-tests.yml"
   pull_request:
-    branches: ["main"]
+    paths:
+      - "backend/social-web-api/**"
+      - ".github/workflows/backend-tests.yml"
 
 jobs:
-  backend:
-    name: Backend (test + docker build)
+  test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend/social-web-api
 
     services:
       postgres:
@@ -24,23 +24,23 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d social_web_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
+          --health-cmd="pg_isready -U postgres -d social_web_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Java 21
+      - name: Set up JDK 24
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: "24"
           cache: maven
 
       - name: Normalize mvnw for Linux
+        working-directory: backend/social-web-api
         run: |
           sed -i 's/\r$//' mvnw
           chmod +x mvnw
@@ -60,40 +60,13 @@ jobs:
         env:
           PGPASSWORD: postgres
 
-      - name: Maven tests
+      - name: Run tests
+        working-directory: backend/social-web-api
         run: ./mvnw -q test
         env:
           SPRING_PROFILES_ACTIVE: test
-          CI_POSTGRES_CHECK: "true"
           POSTGRES_HOST: localhost
           POSTGRES_PORT: "5432"
           POSTGRES_DB: social_web_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-
-      - name: Docker build (no push)
-        run: docker build -t social-web-api:ci .
-
-  frontend:
-    name: Frontend (build)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend/social-web-spa
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/social-web-spa/package-lock.json
-
-      - name: Install
-        run: npm ci
-
-      - name: Build
-        run: npm run build

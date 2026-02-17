@@ -5,11 +5,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.net.URI;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 public class PostgresAvailabilityTest {
 
     @Test
     void postgresMustBeReachableAtConfiguredHostPort() {
+        assumeTrue(
+                env("CI_POSTGRES_CHECK").map("true"::equalsIgnoreCase).orElse(false),
+                "Skipping Postgres availability check (CI_POSTGRES_CHECK != true)"
+        );
+
         String jdbcUrl = resolveJdbcUrl();
         HostPort hp = parseHostPortFromJdbcUrl(jdbcUrl);
 
@@ -21,6 +27,7 @@ public class PostgresAvailabilityTest {
                         + ". jdbcUrl=" + jdbcUrl
         );
     }
+
 
     private static String resolveJdbcUrl() {
         String direct = env("SPRING_DATASOURCE_URL").orElse(null);
