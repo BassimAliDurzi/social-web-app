@@ -6,7 +6,5 @@ import jakarta.validation.constraints.Size;
 public record CreateFeedPostRequest(
         @NotBlank
         @Size(max = 1000)
-        String content,
-
-        String kind
+        String content
 ) {}

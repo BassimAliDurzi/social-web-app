@@ -4,25 +4,35 @@ import com.socialwebapp.api.feed.dto.AuthorDto;
 import com.socialwebapp.api.feed.dto.CreateFeedPostRequest;
 import com.socialwebapp.api.feed.dto.FeedItemDto;
 import com.socialwebapp.api.feed.dto.FeedResponse;
+import com.socialwebapp.api.feed.dto.PageInfoDto;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 @Profile("stub")
 @Service
 public class StubFeedService implements FeedService {
 
+    public StubFeedService(Environment env) {
+        boolean devLike = env.acceptsProfiles(org.springframework.core.env.Profiles.of("dev"));
+        if (!devLike) {
+            throw new IllegalStateException("The 'stub' profile is not allowed outside 'dev'.");
+        }
+    }
+
     @Override
     public FeedResponse getFeed(int page, int limit) {
-        return new FeedResponse(java.util.List.of(), new com.socialwebapp.api.feed.dto.PageInfoDto(page, limit, false));
+        return new FeedResponse(List.of(), new PageInfoDto(page, limit, false));
     }
 
     @Override
     public FeedItemDto createFeedPost(String subject, CreateFeedPostRequest request) {
-        String kind = (request.kind() == null || request.kind().isBlank()) ? "post" : request.kind();
+        String kind = "post";
         UUID authorId = UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
 
         AuthorDto author = new AuthorDto(authorId.toString(), subject);

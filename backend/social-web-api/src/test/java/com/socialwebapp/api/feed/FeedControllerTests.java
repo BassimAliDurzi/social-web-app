@@ -11,11 +11,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.springframework.test.context.ActiveProfiles;
-
 
 @ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -33,12 +32,26 @@ class FeedControllerTests {
                 .uri(uri("/api/feed"))
                 .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .POST(HttpRequest.BodyPublishers.ofString("""
-                        {"content":"Hello","kind":"post"}
+                        {"content":"Hello"}
                         """))
                 .build();
 
         HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
         assertEquals(401, res.statusCode());
+    }
+
+    @Test
+    void getFeed_pageLessThanOne_returns400() throws Exception {
+        String token = loginAndGetAccessToken("user@example.com", "Password123!");
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(uri("/api/feed?page=0&limit=10"))
+                .header("Authorization", "Bearer " + token)
+                .GET()
+                .build();
+
+        HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
+        assertEquals(400, res.statusCode());
     }
 
     @Test
@@ -51,7 +64,7 @@ class FeedControllerTests {
                 .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .header("Authorization", "Bearer " + token)
                 .POST(HttpRequest.BodyPublishers.ofString("""
-                        {"content":"%s","kind":"post"}
+                        {"content":"%s"}
                         """.formatted(uniqueContent)))
                 .build();
 
@@ -60,9 +73,10 @@ class FeedControllerTests {
         System.out.println("POST /api/feed status=" + postRes.statusCode());
         System.out.println("POST /api/feed body=" + postRes.body());
 
-        assertTrue(
-                postRes.statusCode() == 200 || postRes.statusCode() == 201,
-                "POST /api/feed expected 200/201 but got %s, body=%s".formatted(postRes.statusCode(), postRes.body())
+        assertEquals(
+                201,
+                postRes.statusCode(),
+                "POST /api/feed expected 201 but got %s, body=%s".formatted(postRes.statusCode(), postRes.body())
         );
 
         JsonNode created = om.readTree(postRes.body());
@@ -81,7 +95,6 @@ class FeedControllerTests {
 
         System.out.println("GET /api/feed status=" + getRes.statusCode());
         System.out.println("GET /api/feed body=" + getRes.body());
-
 
         JsonNode feed = om.readTree(getRes.body());
         assertTrue(feed.get("items").isArray());

@@ -29,11 +29,14 @@ public class DbFeedService implements FeedService {
 
     @Override
     public FeedResponse getFeed(int page, int limit) {
-        int safePage = Math.max(page, 1);
+        if (page < 1) {
+            throw new IllegalArgumentException("page must be >= 1");
+        }
+
         int safeLimit = Math.min(Math.max(limit, 1), 50);
 
         PageRequest pr = PageRequest.of(
-                safePage - 1,
+                page - 1,
                 safeLimit,
                 Sort.by(Sort.Direction.DESC, "createdAt")
         );
@@ -44,14 +47,14 @@ public class DbFeedService implements FeedService {
                 .map(this::toDto)
                 .toList();
 
-        PageInfoDto pageInfo = new PageInfoDto(safePage, safeLimit, result.hasNext());
+        PageInfoDto pageInfo = new PageInfoDto(page, safeLimit, result.hasNext());
 
         return new FeedResponse(items, pageInfo);
     }
 
     @Override
     public FeedItemDto createFeedPost(String subject, CreateFeedPostRequest request) {
-        String kind = (request.kind() == null || request.kind().isBlank()) ? "post" : request.kind();
+        String kind = "post";
 
         UUID id = UUID.randomUUID();
         OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
@@ -83,7 +86,7 @@ public class DbFeedService implements FeedService {
         );
 
         return new FeedItemDto(
-                p.getKind() == null || p.getKind().isBlank() ? "post" : p.getKind(),
+                "post",
                 String.valueOf(p.getId()),
                 createdAt,
                 author,
