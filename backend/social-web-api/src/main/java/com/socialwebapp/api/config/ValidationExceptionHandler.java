@@ -47,6 +47,12 @@ public class ValidationExceptionHandler {
         return ResponseEntity.badRequest().body(new ValidationErrorResponse(CODE, MESSAGE, errors));
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ValidationErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        List<ValidationErrorItem> errors = List.of(new ValidationErrorItem("request", "Invalid request."));
+        return ResponseEntity.badRequest().body(new ValidationErrorResponse(CODE, MESSAGE, errors));
+    }
+
     private ValidationErrorItem mapConstraintViolation(ConstraintViolation<?> v) {
         String field = v.getPropertyPath() == null ? "value" : v.getPropertyPath().toString();
         String msg = (v.getMessage() == null || v.getMessage().isBlank()) ? "Invalid value." : v.getMessage();
