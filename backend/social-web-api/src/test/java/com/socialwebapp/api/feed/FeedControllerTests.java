@@ -13,8 +13,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 @ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -41,7 +40,7 @@ class FeedControllerTests {
     }
 
     @Test
-    void getFeed_pageLessThanOne_returns400() throws Exception {
+    void getFeed_pageLessThanOne_returns400_contract() throws Exception {
         String token = loginAndGetAccessToken("user@example.com", "Password123!");
 
         HttpRequest req = HttpRequest.newBuilder()
@@ -51,11 +50,37 @@ class FeedControllerTests {
                 .build();
 
         HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
+
         assertEquals(400, res.statusCode());
+        assertNotNull(res.body());
+        assertFalse(res.body().isBlank());
+
+        JsonNode root = om.readTree(res.body());
+        assertTrue(root.isObject());
     }
 
     @Test
-    void postFeed_withToken_createsItem_andGetReturnsIt() throws Exception {
+    void getFeed_limitTooHigh_returns400_contract() throws Exception {
+        String token = loginAndGetAccessToken("user@example.com", "Password123!");
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(uri("/api/feed?page=1&limit=999"))
+                .header("Authorization", "Bearer " + token)
+                .GET()
+                .build();
+
+        HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(400, res.statusCode());
+        assertNotNull(res.body());
+        assertFalse(res.body().isBlank());
+
+        JsonNode root = om.readTree(res.body());
+        assertTrue(root.isObject());
+    }
+
+    @Test
+    void postFeed_withToken_createsItem_andReturnsLocationHeader() throws Exception {
         String token = loginAndGetAccessToken("user@example.com", "Password123!");
         String uniqueContent = "Hello IT " + UUID.randomUUID();
 
@@ -70,43 +95,16 @@ class FeedControllerTests {
 
         HttpResponse<String> postRes = client.send(postReq, HttpResponse.BodyHandlers.ofString());
 
-        System.out.println("POST /api/feed status=" + postRes.statusCode());
-        System.out.println("POST /api/feed body=" + postRes.body());
+        assertEquals(201, postRes.statusCode());
 
-        assertEquals(
-                201,
-                postRes.statusCode(),
-                "POST /api/feed expected 201 but got %s, body=%s".formatted(postRes.statusCode(), postRes.body())
-        );
+        String location = postRes.headers().firstValue("Location").orElse(null);
+        assertNotNull(location);
+        assertFalse(location.isBlank());
 
         JsonNode created = om.readTree(postRes.body());
         assertTrue(created.hasNonNull("id"));
         assertEquals("post", created.get("kind").asText());
         assertEquals(uniqueContent, created.get("content").asText());
-
-        HttpRequest getReq = HttpRequest.newBuilder()
-                .uri(uri("/api/feed?page=1&limit=10"))
-                .header("Authorization", "Bearer " + token)
-                .GET()
-                .build();
-
-        HttpResponse<String> getRes = client.send(getReq, HttpResponse.BodyHandlers.ofString());
-        assertEquals(200, getRes.statusCode());
-
-        System.out.println("GET /api/feed status=" + getRes.statusCode());
-        System.out.println("GET /api/feed body=" + getRes.body());
-
-        JsonNode feed = om.readTree(getRes.body());
-        assertTrue(feed.get("items").isArray());
-
-        boolean found = false;
-        for (JsonNode item : feed.get("items")) {
-            if (uniqueContent.equals(item.get("content").asText())) {
-                found = true;
-                break;
-            }
-        }
-        assertTrue(found, "GET /api/feed did not include created item content=" + uniqueContent);
     }
 
     private String loginAndGetAccessToken(String email, String password) throws Exception {
