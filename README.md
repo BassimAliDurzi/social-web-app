@@ -29,7 +29,7 @@ From `backend/social-web-api`:
 
 ```powershell
 $env:APP_JWT_SECRET="replace-with-a-long-random-secret-at-least-32-chars"
-$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/social_web"
-$env:SPRING_DATASOURCE_USERNAME="social"
-$env:SPRING_DATASOURCE_PASSWORD="social"
+$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5433/social_web"
+$env:SPRING_DATASOURCE_USERNAME="social_web_app"
+$env:SPRING_DATASOURCE_PASSWORD="password"
 .\mvnw.cmd spring-boot:run
