@@ -14,6 +14,8 @@ export type FeedStore = {
   loadMore: () => void;
 };
 
+
+// Normalizes the raw response from the API into a well-typed FeedResponse.
 function normalizeFeedResponse(raw: unknown): FeedResponse {
   const safe = raw as Partial<FeedResponse> | null | undefined;
 
