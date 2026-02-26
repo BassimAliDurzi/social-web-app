@@ -1,24 +1,30 @@
-# Social Web API (Backend)
+# Social Web App
 
-## Requirements
+This repository contains:
+- Backend: `backend/social-web-api` (Spring Boot)
+- Frontend: `frontend/social-web-spa` (React + Vite + TypeScript)
+
+## Backend (Social Web API)
+
+### Requirements
 - Java 21
 - PostgreSQL (dev/prod)
 - Maven Wrapper (included)
 
-## Configuration (env-first)
+### Configuration (env-first)
 The backend reads configuration from environment variables first.
 
-### Database
+#### Database
 - `SPRING_DATASOURCE_URL` (default: `jdbc:postgresql://localhost:5433/social_web`)
 - `SPRING_DATASOURCE_USERNAME` (default: `social_web_app`)
 - `SPRING_DATASOURCE_PASSWORD` (default: `password`)
 
-### JWT
+#### JWT
 - `APP_JWT_SECRET` (default is dev-only; set in prod)
 - `app.jwt.issuer` default: `social-web-api`
 - `app.jwt.ttlSeconds` default: `3600`
 
-## Run (dev)
+### Run (dev)
 From `backend/social-web-api`:
 
 ```powershell
