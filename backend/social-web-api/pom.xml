@@ -76,12 +76,14 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
 
+        <!-- For integration tests using HttpClient / WebTestClient if needed -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
@@ -101,10 +103,11 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- FIX: H2 must NOT be runtime, otherwise Boot may pick org.h2.Driver for local/prod -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>
