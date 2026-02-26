@@ -41,7 +41,7 @@ class FeedControllerTests {
 
     @Test
     void getFeed_pageLessThanOne_returns400_contract() throws Exception {
-        String token = loginAndGetAccessToken("user@example.com", "Password123!");
+        String token = registerAndLoginFreshUserAndGetAccessToken();
 
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(uri("/api/feed?page=0&limit=10"))
@@ -61,7 +61,7 @@ class FeedControllerTests {
 
     @Test
     void getFeed_limitTooHigh_returns400_contract() throws Exception {
-        String token = loginAndGetAccessToken("user@example.com", "Password123!");
+        String token = registerAndLoginFreshUserAndGetAccessToken();
 
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(uri("/api/feed?page=1&limit=999"))
@@ -81,7 +81,7 @@ class FeedControllerTests {
 
     @Test
     void postFeed_withToken_createsItem_andReturnsLocationHeader() throws Exception {
-        String token = loginAndGetAccessToken("user@example.com", "Password123!");
+        String token = registerAndLoginFreshUserAndGetAccessToken();
         String uniqueContent = "Hello IT " + UUID.randomUUID();
 
         HttpRequest postReq = HttpRequest.newBuilder()
@@ -107,8 +107,29 @@ class FeedControllerTests {
         assertEquals(uniqueContent, created.get("content").asText());
     }
 
-    private String loginAndGetAccessToken(String email, String password) throws Exception {
-        HttpRequest req = HttpRequest.newBuilder()
+    /**
+     * Production-grade test strategy:
+     * - Each call uses a brand new user (unique email)
+     * - Avoids shared state / duplicate registration / flaky auth behavior
+     */
+    private String registerAndLoginFreshUserAndGetAccessToken() throws Exception {
+        String email = "user+" + UUID.randomUUID() + "@example.com";
+        String password = "Password123!";
+
+        // 1) Register fresh user
+        HttpRequest registerReq = HttpRequest.newBuilder()
+                .uri(uri("/api/auth/register"))
+                .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                .POST(HttpRequest.BodyPublishers.ofString("""
+                        {"email":"%s","password":"%s"}
+                        """.formatted(email, password)))
+                .build();
+
+        HttpResponse<String> registerRes = client.send(registerReq, HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, registerRes.statusCode(), "Register should return 200. Body=" + registerRes.body());
+
+        // 2) Login
+        HttpRequest loginReq = HttpRequest.newBuilder()
                 .uri(uri("/api/auth/login"))
                 .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .POST(HttpRequest.BodyPublishers.ofString("""
@@ -116,11 +137,16 @@ class FeedControllerTests {
                         """.formatted(email, password)))
                 .build();
 
-        HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
-        assertEquals(200, res.statusCode());
+        HttpResponse<String> loginRes = client.send(loginReq, HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, loginRes.statusCode(), "Login should return 200. Body=" + loginRes.body());
 
-        JsonNode root = om.readTree(res.body());
-        return root.get("accessToken").asText();
+        JsonNode root = om.readTree(loginRes.body());
+        JsonNode tokenNode = root.get("accessToken");
+        assertNotNull(tokenNode, "Response must contain accessToken. Body=" + loginRes.body());
+
+        String token = tokenNode.asText();
+        assertFalse(token.isBlank(), "accessToken must not be blank");
+        return token;
     }
 
     private URI uri(String path) {
