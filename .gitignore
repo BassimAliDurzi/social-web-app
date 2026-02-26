@@ -18,25 +18,22 @@ target/
 tmp/
 backend/social-web-api/tmp_login.json
 
-
 # --- Gradle (if used later) ---
 .gradle/
 build/
 
-# --- Node / Frontend (later in Sprint 0) ---
+# --- Node / Frontend ---
 node_modules/
 dist/
 .vite/
+
+# --- Env files ---
 .env
 .env.*
-
-# local env 
+!.env.example
 .env.*.local
 
-# build output
-dist/
-
-# logs
+# --- Package manager logs ---
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

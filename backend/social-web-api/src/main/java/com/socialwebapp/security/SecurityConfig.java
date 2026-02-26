@@ -32,7 +32,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecretKey jwtSecretKey(@Value("${security.jwt.secret}") String secret) {
+    SecretKey jwtSecretKey(@Value("${app.jwt.secret}") String secret) {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         return new SecretKeySpec(keyBytes, "HmacSHA256");
     }

@@ -1,5 +1,5 @@
 import { fetchFeed, NotImplementedError, UnauthorizedError } from "./feedApi";
-import type { FeedResponse } from "./feedTypes";
+import type { FeedResponse, FeedItem, PageInfo } from "./feedTypes";
 
 export type ViewState =
   | { kind: "loading" }
@@ -13,6 +13,29 @@ export type FeedStore = {
   refresh: () => void;
   loadMore: () => void;
 };
+
+function normalizeFeedResponse(raw: unknown): FeedResponse {
+  const safe = raw as Partial<FeedResponse> | null | undefined;
+
+  const items: FeedItem[] = Array.isArray(safe?.items) ? safe!.items : [];
+
+  const pageInfo: PageInfo = {
+    page:
+      typeof safe?.pageInfo?.page === "number" && safe.pageInfo.page > 0
+        ? safe.pageInfo.page
+        : 1,
+    limit:
+      typeof safe?.pageInfo?.limit === "number" && safe.pageInfo.limit > 0
+        ? safe.pageInfo.limit
+        : 10,
+    hasMore:
+      typeof safe?.pageInfo?.hasMore === "boolean"
+        ? safe.pageInfo.hasMore
+        : false,
+  };
+
+  return { items, pageInfo };
+}
 
 function createFeedStore(): FeedStore {
   let state: ViewState = { kind: "loading" };
@@ -33,9 +56,10 @@ function createFeedStore(): FeedStore {
     inFlight = true;
 
     try {
-      const data = await fetchFeed({ page: 1, limit: 10 });
+      const raw = await fetchFeed({ page: 1, limit: 10 });
+      const data = normalizeFeedResponse(raw);
 
-      if (!data.items.length) {
+      if (data.items.length === 0) {
         set({ kind: "empty" });
       } else {
         set({ kind: "ready", data, isLoadingMore: false });
@@ -67,7 +91,7 @@ function createFeedStore(): FeedStore {
   const loadMore = async () => {
     if (state.kind !== "ready") return;
     if (state.isLoadingMore) return;
-    if (!state.data.pageInfo.hasMore) return;
+    if (!state.data.pageInfo?.hasMore) return;
 
     const current = state.data;
     set({ kind: "ready", data: current, isLoadingMore: true });
@@ -76,7 +100,8 @@ function createFeedStore(): FeedStore {
     const limit = current.pageInfo.limit;
 
     try {
-      const next = await fetchFeed({ page: nextPage, limit });
+      const raw = await fetchFeed({ page: nextPage, limit });
+      const next = normalizeFeedResponse(raw);
 
       set({
         kind: "ready",
@@ -103,7 +128,8 @@ function createFeedStore(): FeedStore {
         return;
       }
 
-      const message = e instanceof Error ? e.message : "Failed to load more posts";
+      const message =
+        e instanceof Error ? e.message : "Failed to load more posts";
       set({ kind: "error", message });
     } finally {
       if (state.kind === "ready" && state.isLoadingMore) {
