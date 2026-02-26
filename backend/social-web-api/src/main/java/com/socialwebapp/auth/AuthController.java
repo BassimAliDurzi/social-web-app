@@ -9,11 +9,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,10 +24,16 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
+    private final RegisterService registerService;
 
-    public AuthController(AuthenticationManager authenticationManager, TokenService tokenService) {
+    public AuthController(
+            AuthenticationManager authenticationManager,
+            TokenService tokenService,
+            RegisterService registerService
+    ) {
         this.authenticationManager = authenticationManager;
         this.tokenService = tokenService;
+        this.registerService = registerService;
     }
 
     @GetMapping("/ping")
@@ -80,7 +84,28 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/register")
+    public RegisterResponse register(@Valid @RequestBody RegisterRequest req) {
+        log.info("Register attempt for email={}", req.email());
 
+        try {
+            var created = registerService.register(req.email(), req.password());
+            log.info("Register OK for email={} id={}", created.getEmail(), created.getId());
+            return new RegisterResponse(created.getId(), created.getEmail());
+        } catch (IllegalArgumentException ex) {
+            // e.g. "Email already exists"
+            log.warn("Register FAILED for email={} msg={}", req.email(), ex.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "email_already_exists");
+        } catch (Exception ex) {
+            log.error("Register FAILED for email={} exType={} msg={}",
+                    req.email(),
+                    ex.getClass().getName(),
+                    ex.getMessage(),
+                    ex
+            );
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "register_failed");
+        }
+    }
 
     @GetMapping("/me")
     public MeResponse me(Authentication auth) {
