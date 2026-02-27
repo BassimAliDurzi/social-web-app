@@ -28,8 +28,26 @@ type FetchFeedParams = {
   limit: number;
 };
 
+type CreatePostRequest = {
+  content: string;
+};
+
 function broadcastLogout() {
   window.dispatchEvent(new CustomEvent("auth:logout"));
+}
+
+function mapHttpError(err: unknown): never {
+  if (err instanceof HttpError) {
+    if (err.status === 401) {
+      broadcastLogout();
+      throw new UnauthorizedError();
+    }
+    if (err.status === 404 || err.status === 501) {
+      throw new NotImplementedError(err.status);
+    }
+    throw err; // keep rich message (includes bodyText)
+  }
+  throw err;
 }
 
 export async function fetchFeed(params: FetchFeedParams): Promise<FeedResponse> {
@@ -44,17 +62,20 @@ export async function fetchFeed(params: FetchFeedParams): Promise<FeedResponse> 
       path: `${FEED_ENDPOINT}?${qs.toString()}`,
     });
   } catch (err) {
-    // Normalize error handling for UI
-    if (err instanceof HttpError) {
-      if (err.status === 401) {
-        broadcastLogout();
-        throw new UnauthorizedError();
-      }
-      if (err.status === 404 || err.status === 501) {
-        throw new NotImplementedError(err.status);
-      }
-      throw err; // keep rich message (includes bodyText)
-    }
-    throw err;
+    mapHttpError(err);
+  }
+}
+
+export async function createPost(content: string): Promise<void> {
+  const payload: CreatePostRequest = { content };
+
+  try {
+    await requestJson<unknown>({
+      method: "POST",
+      path: FEED_ENDPOINT,
+      body: payload,
+    });
+  } catch (err) {
+    mapHttpError(err);
   }
 }
