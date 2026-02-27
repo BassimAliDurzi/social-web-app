@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import { Link } from "react-router-dom";
 
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
@@ -76,7 +77,7 @@ export default function FeedPage() {
           <Stack gap={10}>
             <div style={{ fontWeight: 700 }}>Nothing here yet</div>
             <div style={{ fontSize: 12, color: "#80756b" }}>
-              When people start posting, youâ€™ll see updates here.
+              When people start posting, you'll see updates here.
             </div>
             <Stack gap={10} style={{ flexDirection: "row" }}>
               <Button variant="secondary" onClick={refresh}>
@@ -100,7 +101,12 @@ export default function FeedPage() {
                     justifyContent: "space-between",
                   }}
                 >
-                  <div style={{ fontWeight: 700 }}>{item.author.displayName}</div>
+                  <Link
+                    to={`/wall/${item.author.id}`}
+                    style={{ fontWeight: 700, color: "inherit", textDecoration: "none" }}
+                  >
+                    {item.author.displayName}
+                  </Link>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>
                     {new Date(item.createdAt).toLocaleString()}
                   </div>
@@ -122,7 +128,7 @@ export default function FeedPage() {
               }}
             >
               <div style={{ fontSize: 12, color: "#6b7280" }}>
-                Page {state.data.pageInfo.page} Â· Limit {state.data.pageInfo.limit}
+                Page {state.data.pageInfo.page} · Limit {state.data.pageInfo.limit}
               </div>
 
               {state.data.pageInfo.hasMore ? (
