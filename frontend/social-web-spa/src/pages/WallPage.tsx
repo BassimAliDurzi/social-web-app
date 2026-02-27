@@ -15,8 +15,7 @@ function useAuth() {
 
 export default function WallPage() {
   const params = useParams();
-  const userIdParam =
-    typeof params.userId === "string" ? params.userId : undefined;
+  const userIdParam = typeof params.userId === "string" ? params.userId : undefined;
 
   const auth = useAuth();
 
@@ -47,8 +46,7 @@ export default function WallPage() {
   }, []);
 
   const isSessionExpired =
-    feedState.kind === "error" &&
-    feedState.message.toLowerCase().includes("session expired");
+    feedState.kind === "error" && feedState.message.toLowerCase().includes("session expired");
 
   const filteredItems = useMemo(() => {
     if (feedState.kind !== "ready") return [];
@@ -79,6 +77,10 @@ export default function WallPage() {
     }
   }, [draft]);
 
+  const dismissPostError = useCallback(() => {
+    setPostError(null);
+  }, []);
+
   return (
     <Stack style={{ padding: 16, maxWidth: 820, margin: "0 auto" }} gap={14}>
       {/* Header + actions */}
@@ -106,11 +108,7 @@ export default function WallPage() {
         </Stack>
 
         <Stack gap={10} style={{ flexDirection: "row" }}>
-          <Button
-            variant="secondary"
-            onClick={refresh}
-            disabled={feedState.kind === "loading"}
-          >
+          <Button variant="secondary" onClick={refresh} disabled={feedState.kind === "loading"}>
             Refresh
           </Button>
           <Link to="/feed" style={{ fontSize: 14 }}>
@@ -140,16 +138,26 @@ export default function WallPage() {
               }}
             />
 
-            {postError && <div style={{ fontSize: 12 }}>{postError}</div>}
+            {/* ✅ Step 39: Basic create error handling (clear UI + actions) */}
+            {postError && (
+              <Card>
+                <Stack gap={10}>
+                  <div style={{ fontWeight: 700 }}>Couldn’t create post</div>
+                  <div style={{ fontSize: 12, color: "#6b7280" }}>{postError}</div>
+                  <Stack gap={10} style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+                    <Button variant="secondary" onClick={dismissPostError}>
+                      Dismiss
+                    </Button>
+                    <Button onClick={submitPost} disabled={isPosting || draft.trim().length === 0}>
+                      Retry
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Card>
+            )}
 
-            <Stack
-              gap={10}
-              style={{ flexDirection: "row", justifyContent: "flex-end" }}
-            >
-              <Button
-                onClick={submitPost}
-                disabled={isPosting || draft.trim().length === 0}
-              >
+            <Stack gap={10} style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+              <Button onClick={submitPost} disabled={isPosting || draft.trim().length === 0}>
                 {isPosting ? "Posting..." : "Post"}
               </Button>
             </Stack>
@@ -186,77 +194,68 @@ export default function WallPage() {
       )}
 
       {/* Empty */}
-      {feedState.kind === "ready" &&
-        resolvedUserId &&
-        filteredItems.length === 0 && (
-          <Card>
-            <Stack gap={10}>
-              <div style={{ fontWeight: 700 }}>No posts yet</div>
-              <div style={{ fontSize: 12, color: "#80756b" }}>
-                This user hasn’t posted anything yet.
-              </div>
-              <Stack gap={10} style={{ flexDirection: "row" }}>
-                <Button variant="secondary" onClick={refresh}>
-                  Refresh
-                </Button>
-              </Stack>
+      {feedState.kind === "ready" && resolvedUserId && filteredItems.length === 0 && (
+        <Card>
+          <Stack gap={10}>
+            <div style={{ fontWeight: 700 }}>No posts yet</div>
+            <div style={{ fontSize: 12, color: "#80756b" }}>This user hasn’t posted anything yet.</div>
+            <Stack gap={10} style={{ flexDirection: "row" }}>
+              <Button variant="secondary" onClick={refresh}>
+                Refresh
+              </Button>
             </Stack>
-          </Card>
-        )}
+          </Stack>
+        </Card>
+      )}
 
       {/* List */}
-      {feedState.kind === "ready" &&
-        resolvedUserId &&
-        filteredItems.length > 0 && (
-          <Stack gap={12}>
-            {filteredItems.map((item) => {
-              const canManage =
-                auth.status === "authenticated" &&
-                item.author.id === auth.user?.id;
+      {feedState.kind === "ready" && resolvedUserId && filteredItems.length > 0 && (
+        <Stack gap={12}>
+          {filteredItems.map((item) => {
+            const canManage =
+              auth.status === "authenticated" && item.author.id === auth.user?.id;
 
-              return (
-                <Card key={item.id}>
-                  <Stack gap={8}>
+            return (
+              <Card key={item.id}>
+                <Stack gap={8}>
+                  <Stack
+                    gap={10}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "baseline",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <div style={{ fontWeight: 700 }}>{item.author.displayName}</div>
+                    <div style={{ fontSize: 12, color: "#6b7280" }}>
+                      {new Date(item.createdAt).toLocaleString()}
+                    </div>
+                  </Stack>
+
+                  <div style={{ whiteSpace: "pre-wrap" }}>{item.content}</div>
+
+                  {canManage && (
                     <Stack
                       gap={10}
                       style={{
                         flexDirection: "row",
-                        alignItems: "baseline",
-                        justifyContent: "space-between",
+                        justifyContent: "flex-end",
                       }}
                     >
-                      <div style={{ fontWeight: 700 }}>
-                        {item.author.displayName}
-                      </div>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>
-                        {new Date(item.createdAt).toLocaleString()}
-                      </div>
+                      <Button variant="secondary" disabled title="Not available yet" aria-disabled="true">
+                        Edit
+                      </Button>
+                      <Button variant="secondary" disabled title="Not available yet" aria-disabled="true">
+                        Delete
+                      </Button>
                     </Stack>
-
-                    <div style={{ whiteSpace: "pre-wrap" }}>{item.content}</div>
-
-                    {canManage && (
-                      <Stack
-                        gap={10}
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "flex-end",
-                        }}
-                      >
-                        <Button variant="secondary" disabled>
-                          Edit
-                        </Button>
-                        <Button variant="secondary" disabled>
-                          Delete
-                        </Button>
-                      </Stack>
-                    )}
-                  </Stack>
-                </Card>
-              );
-            })}
-          </Stack>
-        )}
+                  )}
+                </Stack>
+              </Card>
+            );
+          })}
+        </Stack>
+      )}
     </Stack>
   );
 }
