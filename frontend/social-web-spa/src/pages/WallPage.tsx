@@ -9,8 +9,24 @@ import { getAuthState, subscribeAuth } from "../auth/authStore";
 import type { ViewState } from "../features/feed/feedStore";
 import { feedStore } from "../features/feed/feedStore";
 
+// Cache snapshot to avoid infinite render loop with useSyncExternalStore
+let _lastAuthKey: string | null = null;
+let _lastAuthSnapshot: ReturnType<typeof getAuthState> | null = null;
+
+function getAuthSnapshotCached() {
+  const snap = getAuthState();
+
+  const key = `${snap.status}|${snap.user?.id ?? ""}|${snap.user?.displayName ?? ""}`;
+
+  if (_lastAuthKey === key && _lastAuthSnapshot) return _lastAuthSnapshot;
+
+  _lastAuthKey = key;
+  _lastAuthSnapshot = snap;
+  return snap;
+}
+
 function useAuth() {
-  return useSyncExternalStore(subscribeAuth, getAuthState, getAuthState);
+  return useSyncExternalStore(subscribeAuth, getAuthSnapshotCached, getAuthSnapshotCached);
 }
 
 export default function WallPage() {
