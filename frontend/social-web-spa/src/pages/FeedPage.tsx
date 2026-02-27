@@ -43,6 +43,11 @@ export default function FeedPage() {
         <h1 style={{ margin: 0 }}>Feed</h1>
 
         <Stack gap={10} style={{ flexDirection: "row" }}>
+          {/* ✅ Step 38: Quick nav to own wall */}
+          <Link to="/wall" style={{ textDecoration: "none" }}>
+            <Button variant="secondary">My Wall</Button>
+          </Link>
+
           <Button variant="secondary" onClick={refresh} disabled={state.kind === "loading"}>
             Refresh
           </Button>
