@@ -1,4 +1,5 @@
 import type { FeedResponse } from "./feedTypes";
+import { HttpError, requestJson } from "../../lib/http";
 
 export const FEED_ENDPOINT = "/api/feed";
 
@@ -27,41 +28,54 @@ type FetchFeedParams = {
   limit: number;
 };
 
-function getAccessToken(): string | null {
-  return localStorage.getItem("auth.accessToken") ?? localStorage.getItem("accessToken");
-}
+type CreatePostRequest = {
+  content: string;
+};
 
 function broadcastLogout() {
   window.dispatchEvent(new CustomEvent("auth:logout"));
 }
 
+function mapHttpError(err: unknown): never {
+  if (err instanceof HttpError) {
+    if (err.status === 401) {
+      broadcastLogout();
+      throw new UnauthorizedError();
+    }
+    if (err.status === 404 || err.status === 501) {
+      throw new NotImplementedError(err.status);
+    }
+    throw err; // keep rich message (includes bodyText)
+  }
+  throw err;
+}
+
 export async function fetchFeed(params: FetchFeedParams): Promise<FeedResponse> {
-  const url = new URL(FEED_ENDPOINT, window.location.origin);
-  url.searchParams.set("page", String(params.page));
-  url.searchParams.set("limit", String(params.limit));
-
-  const token = getAccessToken();
-
-  const res = await fetch(url.toString(), {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+  const qs = new URLSearchParams({
+    page: String(params.page),
+    limit: String(params.limit),
   });
 
-  if (res.status === 401) {
-    broadcastLogout();
-    throw new UnauthorizedError();
+  try {
+    return await requestJson<FeedResponse>({
+      method: "GET",
+      path: `${FEED_ENDPOINT}?${qs.toString()}`,
+    });
+  } catch (err) {
+    mapHttpError(err);
   }
+}
 
-  if (res.status === 404 || res.status === 501) {
-    throw new NotImplementedError(res.status);
+export async function createPost(content: string): Promise<void> {
+  const payload: CreatePostRequest = { content };
+
+  try {
+    await requestJson<unknown>({
+      method: "POST",
+      path: FEED_ENDPOINT,
+      body: payload,
+    });
+  } catch (err) {
+    mapHttpError(err);
   }
-
-  if (!res.ok) {
-    throw new Error(`Feed request failed (${res.status})`);
-  }
-
-  return (await res.json()) as FeedResponse;
 }

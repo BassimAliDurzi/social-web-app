@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import RequireAuth from "./auth/RequireAuth";
 import FeedPage from "./pages/FeedPage";
 import LoginPage from "./pages/LoginPage";
+import WallPage from "./pages/WallPage";
 
 export default function App() {
   return (
@@ -18,11 +19,22 @@ export default function App() {
           }
         />
 
+        {/* Own wall shortcut (we'll resolve current user inside WallPage) */}
         <Route
           path="/wall"
           element={
             <RequireAuth>
-              <FeedPage />
+              <WallPage />
+            </RequireAuth>
+          }
+        />
+
+        {/* Other user's wall */}
+        <Route
+          path="/wall/:userId"
+          element={
+            <RequireAuth>
+              <WallPage />
             </RequireAuth>
           }
         />

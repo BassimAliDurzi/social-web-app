@@ -1,4 +1,4 @@
-import { fetchFeed, NotImplementedError, UnauthorizedError } from "./feedApi";
+import { createPost, fetchFeed, NotImplementedError, UnauthorizedError } from "./feedApi";
 import type { FeedResponse, FeedItem, PageInfo } from "./feedTypes";
 
 export type ViewState =
@@ -12,6 +12,7 @@ export type FeedStore = {
   subscribe: (listener: () => void) => () => void;
   refresh: () => void;
   loadMore: () => void;
+  createPost: (content: string) => Promise<void>;
 };
 
 
@@ -145,9 +146,39 @@ function createFeedStore(): FeedStore {
     void loadFirstPage();
   };
 
+    const createPostAndRefresh = async (content: string) => {
+    const clean = content.trim();
+    if (!clean) return;
+
+    try {
+      await createPost(clean);
+      refresh();
+    } catch (e) {
+      if (e instanceof UnauthorizedError) {
+        set({
+          kind: "error",
+          message: "Your session expired. Please sign in again.",
+        });
+        return;
+      }
+
+      if (e instanceof NotImplementedError) {
+        set({
+          kind: "error",
+          message: "Posting is not available yet.",
+        });
+        return;
+      }
+
+      const message = e instanceof Error ? e.message : "Failed to create post";
+      set({ kind: "error", message });
+      throw e;
+    }
+  };
+
   refresh();
 
-  return {
+    return {
     getSnapshot: () => state,
     subscribe: (listener) => {
       listeners.add(listener);
@@ -159,6 +190,7 @@ function createFeedStore(): FeedStore {
     loadMore: () => {
       void loadMore();
     },
+    createPost: createPostAndRefresh,
   };
 }
 
