@@ -10,9 +10,9 @@ export type LoginResponse = {
 };
 
 export type MeResponse = {
-  email?: string;
-  roles?: string[];
-  [key: string]: unknown;
+  id: number | string;
+  subject: string;
+  displayName?: string; 
 };
 
 export type ApiErrorCode =

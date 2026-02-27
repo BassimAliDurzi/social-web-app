@@ -29,9 +29,20 @@ function useAuth() {
   return useSyncExternalStore(subscribeAuth, getAuthSnapshotCached, getAuthSnapshotCached);
 }
 
+function toIdString(value: unknown): string | null {
+  if (typeof value === "string") {
+    const s = value.trim();
+    return s.length > 0 ? s : null;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  return null;
+}
+
 export default function WallPage() {
   const params = useParams();
-  const userIdParam = typeof params.userId === "string" ? params.userId : undefined;
+  const userIdParam = (toIdString(params.userId) ?? undefined) as string | undefined;
 
   const auth = useAuth();
 
@@ -42,16 +53,14 @@ export default function WallPage() {
   );
 
   const resolvedUserId: string | null = useMemo(() => {
-    if (userIdParam && userIdParam.trim().length > 0) return userIdParam;
-
-    const meId = auth.user?.id;
-    return typeof meId === "string" && meId.trim().length > 0 ? meId : null;
+    if (userIdParam) return userIdParam;
+    return toIdString(auth.user?.id);
   }, [userIdParam, auth.user?.id]);
 
   const isOwnWall =
     auth.status === "authenticated" &&
     resolvedUserId != null &&
-    resolvedUserId === auth.user?.id;
+    resolvedUserId === toIdString(auth.user?.id);
 
   const refresh = useCallback(() => {
     feedStore.refresh();
@@ -67,7 +76,7 @@ export default function WallPage() {
   const filteredItems = useMemo(() => {
     if (feedState.kind !== "ready") return [];
     if (!resolvedUserId) return [];
-    return feedState.data.items.filter((x) => x.author.id === resolvedUserId);
+    return feedState.data.items.filter((x) => toIdString(x.author.id) === resolvedUserId);
   }, [feedState, resolvedUserId]);
 
   const [draft, setDraft] = useState("");
@@ -154,7 +163,7 @@ export default function WallPage() {
               }}
             />
 
-            {/* ✅ Step 39: Basic create error handling (clear UI + actions) */}
+            {/* ✅ Basic create error handling */}
             {postError && (
               <Card>
                 <Stack gap={10}>
@@ -214,7 +223,9 @@ export default function WallPage() {
         <Card>
           <Stack gap={10}>
             <div style={{ fontWeight: 700 }}>No posts yet</div>
-            <div style={{ fontSize: 12, color: "#80756b" }}>This user hasn’t posted anything yet.</div>
+            <div style={{ fontSize: 12, color: "#80756b" }}>
+              This user hasn’t posted anything yet.
+            </div>
             <Stack gap={10} style={{ flexDirection: "row" }}>
               <Button variant="secondary" onClick={refresh}>
                 Refresh
@@ -229,7 +240,8 @@ export default function WallPage() {
         <Stack gap={12}>
           {filteredItems.map((item) => {
             const canManage =
-              auth.status === "authenticated" && item.author.id === auth.user?.id;
+              auth.status === "authenticated" &&
+              toIdString(item.author.id) === toIdString(auth.user?.id);
 
             return (
               <Card key={item.id}>
@@ -258,10 +270,20 @@ export default function WallPage() {
                         justifyContent: "flex-end",
                       }}
                     >
-                      <Button variant="secondary" disabled title="Not available yet" aria-disabled="true">
+                      <Button
+                        variant="secondary"
+                        disabled
+                        title="Not available yet"
+                        aria-disabled="true"
+                      >
                         Edit
                       </Button>
-                      <Button variant="secondary" disabled title="Not available yet" aria-disabled="true">
+                      <Button
+                        variant="secondary"
+                        disabled
+                        title="Not available yet"
+                        aria-disabled="true"
+                      >
                         Delete
                       </Button>
                     </Stack>

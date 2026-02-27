@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { ApiError } from "../auth/authApi";
 import { useAuth } from "../auth/useAuth";
+import { useEffect } from "react";
+
 
 type FormState = {
   email: string;
@@ -49,10 +51,11 @@ export default function LoginPage() {
     setForm((p) => ({ ...p, password: e.target.value }));
   }
 
-  if (auth.isAuthenticated) {
-    navigate(returnTo, { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (auth.isAuthenticated) {
+      navigate(returnTo, { replace: true });
+    }
+  }, [auth.isAuthenticated, navigate, returnTo]);
 
   return (
     <div style={{ maxWidth: 420, margin: "48px auto", padding: 16 }}>
