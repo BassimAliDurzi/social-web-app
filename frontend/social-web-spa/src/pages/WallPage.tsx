@@ -10,7 +10,6 @@ import type { ViewState } from "../features/feed/feedStore";
 import { feedStore } from "../features/feed/feedStore";
 
 function useAuth() {
-  // add getServerSnapshot to keep the hook happy even if SSR is introduced later
   return useSyncExternalStore(subscribeAuth, getAuthState, getAuthState);
 }
 
@@ -28,16 +27,16 @@ export default function WallPage() {
   );
 
   const resolvedUserId: string | null = useMemo(() => {
-    // /wall/:userId
     if (userIdParam && userIdParam.trim().length > 0) return userIdParam;
 
-    // /wall => own wall
     const meId = auth.user?.id;
     return typeof meId === "string" && meId.trim().length > 0 ? meId : null;
   }, [userIdParam, auth.user?.id]);
 
   const isOwnWall =
-    resolvedUserId != null && resolvedUserId === auth.user?.id;
+    auth.status === "authenticated" &&
+    resolvedUserId != null &&
+    resolvedUserId === auth.user?.id;
 
   const refresh = useCallback(() => {
     feedStore.refresh();
@@ -71,7 +70,6 @@ export default function WallPage() {
     try {
       await feedStore.createPost(clean);
       setDraft("");
-      // ensure UI reflects the new post (unless feedStore does optimistic update)
       feedStore.refresh();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to create post";
@@ -211,29 +209,52 @@ export default function WallPage() {
         resolvedUserId &&
         filteredItems.length > 0 && (
           <Stack gap={12}>
-            {filteredItems.map((item) => (
-              <Card key={item.id}>
-                <Stack gap={8}>
-                  <Stack
-                    gap={10}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "baseline",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <div style={{ fontWeight: 700 }}>
-                      {item.author.displayName}
-                    </div>
-                    <div style={{ fontSize: 12, color: "#6b7280" }}>
-                      {new Date(item.createdAt).toLocaleString()}
-                    </div>
-                  </Stack>
+            {filteredItems.map((item) => {
+              const canManage =
+                auth.status === "authenticated" &&
+                item.author.id === auth.user?.id;
 
-                  <div style={{ whiteSpace: "pre-wrap" }}>{item.content}</div>
-                </Stack>
-              </Card>
-            ))}
+              return (
+                <Card key={item.id}>
+                  <Stack gap={8}>
+                    <Stack
+                      gap={10}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "baseline",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <div style={{ fontWeight: 700 }}>
+                        {item.author.displayName}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        {new Date(item.createdAt).toLocaleString()}
+                      </div>
+                    </Stack>
+
+                    <div style={{ whiteSpace: "pre-wrap" }}>{item.content}</div>
+
+                    {canManage && (
+                      <Stack
+                        gap={10}
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "flex-end",
+                        }}
+                      >
+                        <Button variant="secondary" disabled>
+                          Edit
+                        </Button>
+                        <Button variant="secondary" disabled>
+                          Delete
+                        </Button>
+                      </Stack>
+                    )}
+                  </Stack>
+                </Card>
+              );
+            })}
           </Stack>
         )}
     </Stack>
