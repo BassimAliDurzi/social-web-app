@@ -45,4 +45,28 @@ public class StubFeedService implements FeedService {
                 request.content()
         );
     }
+
+    @Override
+    public FeedItemDto updateFeedPost(String subject, UUID id, String newContent) {
+        String clean = newContent == null ? "" : newContent.trim();
+        if (clean.isEmpty()) {
+            throw new IllegalArgumentException("content must not be blank");
+        }
+
+        UUID authorId = UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
+        AuthorDto author = new AuthorDto(authorId.toString(), subject);
+
+        return new FeedItemDto(
+                "post",
+                id.toString(),
+                DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
+                author,
+                clean
+        );
+    }
+
+    @Override
+    public void deleteFeedPost(String subject, UUID id) {
+        // no-op for stub profile
+    }
 }

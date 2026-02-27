@@ -4,54 +4,65 @@ import com.socialwebapp.api.feed.dto.CreateFeedPostRequest;
 import com.socialwebapp.api.feed.dto.FeedItemDto;
 import com.socialwebapp.api.feed.dto.FeedResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import java.net.URI;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
-@Validated
 @RestController
 @RequestMapping("/api/feed")
 public class FeedController {
 
-    private final FeedService feedService;
+    private final FeedPostService feedPostService;
 
-    public FeedController(FeedService feedService) {
-        this.feedService = feedService;
+    public FeedController(FeedPostService feedPostService) {
+        this.feedPostService = feedPostService;
     }
 
+
     @GetMapping
-    public FeedResponse getFeed(
-            @RequestParam(defaultValue = "1") @Min(1) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit
+    public ResponseEntity<FeedResponse> getFeed(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int limit
     ) {
-        return feedService.getFeed(page, limit);
+        FeedResponse response = feedPostService.getFeed(page, limit);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping
-    public ResponseEntity<FeedItemDto> createFeedPost(
-            @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody CreateFeedPostRequest request
+    public ResponseEntity<FeedItemDto> createPost(
+            @RequestBody @Valid CreateFeedPostRequest request,
+            Authentication authentication
     ) {
-        String subject = jwt.getSubject();
-        FeedItemDto created = feedService.createFeedPost(subject, request);
+        String currentUserEmail = authentication.getName();
+        FeedItemDto created =
+                feedPostService.createPost(request, currentUserEmail);
 
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(created.id())
-                .toUri();
-
-        return ResponseEntity.created(location).body(created);
+        return ResponseEntity
+                .created(java.net.URI.create("/api/feed/" + created.id()))
+                .body(created);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<FeedItemDto> updatePost(
+            @PathVariable String id,
+            @RequestBody @Valid CreateFeedPostRequest request,
+            Authentication authentication
+    ) {
+        String currentUserEmail = authentication.getName();
+        FeedItemDto updated =
+                feedPostService.updatePost(id, request, currentUserEmail);
+
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePost(
+            @PathVariable String id,
+            Authentication authentication
+    ) {
+        String currentUserEmail = authentication.getName();
+        feedPostService.deletePost(id, currentUserEmail);
+
+        return ResponseEntity.noContent().build();
+    }
 }
