@@ -1,5 +1,6 @@
 package com.socialwebapp.auth;
 
+import com.socialwebapp.auth.data.UserRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
@@ -7,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -25,15 +27,18 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
     private final RegisterService registerService;
+    private final UserRepository userRepository;
 
     public AuthController(
             AuthenticationManager authenticationManager,
             TokenService tokenService,
-            RegisterService registerService
+            RegisterService registerService,
+            UserRepository userRepository
     ) {
         this.authenticationManager = authenticationManager;
         this.tokenService = tokenService;
         this.registerService = registerService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/ping")
@@ -47,7 +52,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public TokenService.TokenResponse login(@Valid @RequestBody LoginRequest req) {
+    public ResponseEntity<TokenService.TokenResponse> login(@Valid @RequestBody LoginRequest req) {
         log.info("Login attempt for email={}", req.email());
 
         final Authentication auth;
@@ -72,7 +77,12 @@ public class AuthController {
         try {
             var token = tokenService.issue(auth);
             log.info("Token issued OK for email={}", req.email());
-            return token;
+
+            return ResponseEntity
+                    .ok()
+                    .header("X-Debug-TokenService", "issued")
+                    .body(token);
+
         } catch (Exception ex) {
             log.error("Token issue FAILED for email={} exType={} msg={}",
                     req.email(),
@@ -107,12 +117,23 @@ public class AuthController {
         }
     }
 
+    /**
+     * Returns the authenticated user's identity for frontend UI rules.
+     * Must include a stable user id so the SPA can resolve "my wall" and decide edit/delete visibility.
+     */
     @GetMapping("/me")
     public MeResponse me(Authentication auth) {
-        return new MeResponse(auth.getName());
+        final String email = auth.getName(); // in our app this is the email (subject)
+        var user = userRepository.findByEmail(email)
+                .orElseThrow(() -> {
+                    log.warn("ME not found for email={}", email);
+                    return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found");
+                });
+
+        return new MeResponse(user.getId(), user.getEmail());
     }
 
     public record LoginRequest(@NotBlank String email, @NotBlank String password) {}
-    public record MeResponse(String subject) {}
+    public record MeResponse(Long id, String subject) {}
     public record PingResponse(String status) {}
 }

@@ -4,6 +4,9 @@ import java.time.Instant;
 
 import com.socialwebapp.security.JwtProperties;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
@@ -14,6 +17,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class TokenService {
+
+    private static final Logger log = LoggerFactory.getLogger(TokenService.class);
 
     public record TokenResponse(String accessToken, String tokenType) {}
 
@@ -26,6 +31,11 @@ public class TokenService {
     }
 
     public TokenResponse issue(Authentication auth) {
+
+        log.info("TOKEN_ISSUE principalClass={}, name={}",
+                auth.getPrincipal().getClass().getName(),
+                auth.getName());
+
         Instant now = Instant.now();
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
@@ -35,7 +45,6 @@ public class TokenService {
                 .subject(auth.getName())
                 .build();
 
-        // ✅ Critical: set HS256 in header so NimbusJwtEncoder can select the signing key
         JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256).build();
 
         String tokenValue = jwtEncoder
