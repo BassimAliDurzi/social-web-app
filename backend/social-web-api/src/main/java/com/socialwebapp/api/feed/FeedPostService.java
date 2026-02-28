@@ -138,4 +138,37 @@ public class FeedPostService {
         );
     }
 
+    public FeedResponse getWall(UUID authorId, int page, int limit) {
+
+        if (page < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be >= 1");
+        }
+
+        if (limit < 1 || limit > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid limit");
+        }
+
+        var pageable = org.springframework.data.domain.PageRequest.of(
+                page - 1,
+                limit,
+                org.springframework.data.domain.Sort.by("createdAt").descending()
+        );
+
+        var pageResult = repository.findByAuthorIdOrderByCreatedAtDesc(authorId, pageable);
+
+        var items = pageResult.getContent()
+                .stream()
+                .map(this::mapToDto)
+                .toList();
+
+        return new FeedResponse(
+                items,
+                new com.socialwebapp.api.feed.dto.PageInfoDto(
+                        page,
+                        limit,
+                        pageResult.hasNext()
+                )
+        );
+    }
+
 }

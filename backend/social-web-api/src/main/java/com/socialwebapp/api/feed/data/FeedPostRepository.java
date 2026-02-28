@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface FeedPostRepository extends JpaRepository<FeedPostEntity, UUID> {
     Page<FeedPostEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    Page<FeedPostEntity> findByAuthorIdOrderByCreatedAtDesc(UUID authorId, Pageable pageable);
+
 }

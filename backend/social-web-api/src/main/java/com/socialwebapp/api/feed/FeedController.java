@@ -65,4 +65,27 @@ public class FeedController {
 
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<FeedResponse> getWall(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        String raw = userId == null ? "" : userId.trim();
+
+        java.util.UUID authorId;
+        try {
+            // UUID passed directly (authorId in feed_posts)
+            authorId = java.util.UUID.fromString(raw);
+        } catch (IllegalArgumentException ex) {
+            // numeric user id (from /api/auth/me) -> same mapping used in createPost
+            authorId = java.util.UUID.nameUUIDFromBytes(
+                    raw.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+            );
+        }
+
+        FeedResponse response = feedPostService.getWall(authorId, page, limit);
+        return ResponseEntity.ok(response);
+    }
 }
