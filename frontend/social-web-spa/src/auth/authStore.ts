@@ -1,7 +1,22 @@
-import { buildAuthHeader, clearAccessToken, getAccessToken, setAccessToken } from "./tokenStorage";
-import { getMe, login, type ApiError, type LoginRequest, type MeResponse } from "./authApi";
+import {
+  buildAuthHeader,
+  clearAccessToken,
+  getAccessToken,
+  setAccessToken,
+} from "./tokenStorage";
+import {
+  getMe,
+  login,
+  type ApiError,
+  type LoginRequest,
+  type MeResponse,
+} from "./authApi";
 
-export type AuthStatus = "idle" | "loading" | "authenticated" | "unauthenticated";
+export type AuthStatus =
+  | "idle"
+  | "loading"
+  | "authenticated"
+  | "unauthenticated";
 
 export type AuthState = {
   status: AuthStatus;
@@ -42,19 +57,31 @@ export function subscribeAuth(listener: Listener): () => void {
 
 export async function bootstrapAuth(): Promise<void> {
   const token = getAccessToken();
+
   if (!token) {
-    setState({ status: "unauthenticated", accessToken: null, user: null, error: null });
+    setState({
+      status: "unauthenticated",
+      accessToken: null,
+      user: null,
+      error: null,
+    });
     return;
   }
 
   setState({ status: "loading", accessToken: token, user: null, error: null });
 
   try {
+    // /api/auth/me now returns { id, subject } => stable loggedInUserId available
     const me = await getMe(buildAuthHeader());
     setState({ status: "authenticated", user: me, error: null });
   } catch (e) {
     clearAccessToken();
-    setState({ status: "unauthenticated", accessToken: null, user: null, error: e as ApiError });
+    setState({
+      status: "unauthenticated",
+      accessToken: null,
+      user: null,
+      error: e as ApiError,
+    });
   }
 }
 
@@ -63,6 +90,7 @@ export async function loginAndLoadUser(req: LoginRequest): Promise<void> {
 
   try {
     const res = await login(req);
+
     setAccessToken(res.accessToken);
     setState({ accessToken: res.accessToken });
 
@@ -70,12 +98,22 @@ export async function loginAndLoadUser(req: LoginRequest): Promise<void> {
     setState({ status: "authenticated", user: me, error: null });
   } catch (e) {
     clearAccessToken();
-    setState({ status: "unauthenticated", accessToken: null, user: null, error: e as ApiError });
+    setState({
+      status: "unauthenticated",
+      accessToken: null,
+      user: null,
+      error: e as ApiError,
+    });
     throw e;
   }
 }
 
 export function logout(): void {
   clearAccessToken();
-  setState({ status: "unauthenticated", accessToken: null, user: null, error: null });
+  setState({
+    status: "unauthenticated",
+    accessToken: null,
+    user: null,
+    error: null,
+  });
 }

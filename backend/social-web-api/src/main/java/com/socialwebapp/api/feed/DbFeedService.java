@@ -73,6 +73,69 @@ public class DbFeedService implements FeedService {
         return toDto(saved);
     }
 
+    /**
+     * Update an existing feed post (content only).
+     * Ownership rule:
+     * - Only the author (derived from JWT subject/email) may update the post.
+     *
+     * @param subject JWT subject (email)
+     * @param id post id
+     * @param newContent updated content
+     * @return updated post as DTO
+     * @throws IllegalArgumentException when content is blank
+     * @throws java.util.NoSuchElementException when post not found
+     * @throws SecurityException when user is not the author
+     */
+
+    @Override
+    public FeedItemDto updateFeedPost(String subject, UUID id, String newContent) {
+        String clean = newContent == null ? "" : newContent.trim();
+        if (clean.isEmpty()) {
+            throw new IllegalArgumentException("content must not be blank");
+        }
+
+        FeedPostEntity existing = repo.findById(id).orElseThrow();
+
+        UUID currentAuthorId = UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
+        if (!currentAuthorId.equals(existing.getAuthorId())) {
+            throw new SecurityException("forbidden");
+        }
+
+        FeedPostEntity updated = new FeedPostEntity(
+                existing.getId(),
+                existing.getCreatedAt(),
+                existing.getAuthorId(),
+                existing.getAuthorDisplayName(),
+                clean,
+                existing.getKind()
+        );
+
+        FeedPostEntity saved = repo.save(updated);
+        return toDto(saved);
+    }
+
+    /**
+     * Delete an existing feed post.
+     * Ownership rule:
+     * - Only the author (derived from JWT subject/email) may delete the post.
+     *
+     * @param subject JWT subject (email)
+     * @param id post id
+     * @throws java.util.NoSuchElementException when post not found
+     * @throws SecurityException when user is not the author
+     */
+    @Override
+    public void deleteFeedPost(String subject, UUID id) {
+        FeedPostEntity existing = repo.findById(id).orElseThrow();
+
+        UUID currentAuthorId = UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
+        if (!currentAuthorId.equals(existing.getAuthorId())) {
+            throw new SecurityException("forbidden");
+        }
+
+        repo.delete(existing);
+    }
+
     private FeedItemDto toDto(FeedPostEntity p) {
         String createdAt = p.getCreatedAt() == null
                 ? ""

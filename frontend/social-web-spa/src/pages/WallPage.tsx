@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { Card } from "../ui/Card";
@@ -6,8 +6,13 @@ import { Button } from "../ui/Button";
 import { Stack } from "../ui/Stack";
 
 import { getAuthState, subscribeAuth } from "../auth/authStore";
-import type { ViewState } from "../features/feed/feedStore";
-import { feedStore } from "../features/feed/feedStore";
+import {
+  fetchWall,
+  createPost,
+  UnauthorizedError,
+  NotImplementedError,
+} from "../features/feed/feedApi";
+import type { FeedItem, FeedResponse } from "../features/feed/feedTypes";
 
 // Cache snapshot to avoid infinite render loop with useSyncExternalStore
 let _lastAuthKey: string | null = null;
@@ -15,7 +20,6 @@ let _lastAuthSnapshot: ReturnType<typeof getAuthState> | null = null;
 
 function getAuthSnapshotCached() {
   const snap = getAuthState();
-
   const key = `${snap.status}|${snap.user?.id ?? ""}|${snap.user?.displayName ?? ""}`;
 
   if (_lastAuthKey === key && _lastAuthSnapshot) return _lastAuthSnapshot;
@@ -29,46 +33,72 @@ function useAuth() {
   return useSyncExternalStore(subscribeAuth, getAuthSnapshotCached, getAuthSnapshotCached);
 }
 
+function toIdString(value: unknown): string | null {
+  if (typeof value === "string") {
+    const s = value.trim();
+    return s.length > 0 ? s : null;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  return null;
+}
+
+type WallState =
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; data: FeedResponse };
+
+const WALL_PAGE_SIZE = 10;
+
 export default function WallPage() {
   const params = useParams();
-  const userIdParam = typeof params.userId === "string" ? params.userId : undefined;
+  const userIdParam = (toIdString(params.userId) ?? undefined) as string | undefined;
 
   const auth = useAuth();
 
-  const feedState: ViewState = useSyncExternalStore(
-    feedStore.subscribe,
-    feedStore.getSnapshot,
-    feedStore.getSnapshot
-  );
-
   const resolvedUserId: string | null = useMemo(() => {
-    if (userIdParam && userIdParam.trim().length > 0) return userIdParam;
-
-    const meId = auth.user?.id;
-    return typeof meId === "string" && meId.trim().length > 0 ? meId : null;
+    // /wall/:userId OR /wall (own wall)
+    if (userIdParam) return userIdParam;
+    return toIdString(auth.user?.id);
   }, [userIdParam, auth.user?.id]);
 
   const isOwnWall =
     auth.status === "authenticated" &&
     resolvedUserId != null &&
-    resolvedUserId === auth.user?.id;
+    resolvedUserId === toIdString(auth.user?.id);
 
-  const refresh = useCallback(() => {
-    feedStore.refresh();
-  }, []);
+  const [wallState, setWallState] = useState<WallState>({ kind: "loading" });
 
   const goToLogin = useCallback(() => {
     window.location.assign("/login");
   }, []);
 
-  const isSessionExpired =
-    feedState.kind === "error" && feedState.message.toLowerCase().includes("session expired");
+  const load = useCallback(async () => {
+    if (!resolvedUserId) return;
 
-  const filteredItems = useMemo(() => {
-    if (feedState.kind !== "ready") return [];
-    if (!resolvedUserId) return [];
-    return feedState.data.items.filter((x) => x.author.id === resolvedUserId);
-  }, [feedState, resolvedUserId]);
+    setWallState({ kind: "loading" });
+
+    try {
+      const data = await fetchWall({ userId: resolvedUserId, page: 1, limit: WALL_PAGE_SIZE });
+      setWallState({ kind: "ready", data });
+    } catch (e) {
+      if (e instanceof UnauthorizedError) {
+        setWallState({ kind: "error", message: "Your session expired. Please sign in again." });
+        return;
+      }
+      if (e instanceof NotImplementedError) {
+        setWallState({ kind: "error", message: "Wall is not available yet." });
+        return;
+      }
+      const msg = e instanceof Error ? e.message : "Failed to load wall";
+      setWallState({ kind: "error", message: msg });
+    }
+  }, [resolvedUserId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const [draft, setDraft] = useState("");
   const [isPosting, setIsPosting] = useState(false);
@@ -82,20 +112,35 @@ export default function WallPage() {
     setPostError(null);
 
     try {
-      await feedStore.createPost(clean);
+      await createPost(clean);
       setDraft("");
-      feedStore.refresh();
+      await load(); // refresh wall from backend (sorted newest-first)
     } catch (e) {
+      if (e instanceof UnauthorizedError) {
+        setPostError("Your session expired. Please sign in again.");
+        return;
+      }
+
+      if (e instanceof NotImplementedError) {
+        setPostError("Posting is not available yet.");
+        return;
+      }
+
       const msg = e instanceof Error ? e.message : "Failed to create post";
       setPostError(msg);
     } finally {
       setIsPosting(false);
     }
-  }, [draft]);
+  }, [draft, load]);
 
   const dismissPostError = useCallback(() => {
     setPostError(null);
   }, []);
+
+  const isSessionExpired =
+    wallState.kind === "error" && wallState.message.toLowerCase().includes("session expired");
+
+  const items: FeedItem[] = wallState.kind === "ready" ? wallState.data.items : [];
 
   return (
     <Stack style={{ padding: 16, maxWidth: 820, margin: "0 auto" }} gap={14}>
@@ -124,7 +169,7 @@ export default function WallPage() {
         </Stack>
 
         <Stack gap={10} style={{ flexDirection: "row" }}>
-          <Button variant="secondary" onClick={refresh} disabled={feedState.kind === "loading"}>
+          <Button variant="secondary" onClick={load} disabled={wallState.kind === "loading"}>
             Refresh
           </Button>
           <Link to="/feed" style={{ fontSize: 14 }}>
@@ -154,7 +199,7 @@ export default function WallPage() {
               }}
             />
 
-            {/* ✅ Step 39: Basic create error handling (clear UI + actions) */}
+            {/* Basic create error handling */}
             {postError && (
               <Card>
                 <Stack gap={10}>
@@ -182,19 +227,19 @@ export default function WallPage() {
       )}
 
       {/* Loading */}
-      {feedState.kind === "loading" && <Card>Loading...</Card>}
+      {wallState.kind === "loading" && <Card>Loading...</Card>}
 
       {/* Error */}
-      {feedState.kind === "error" && (
+      {wallState.kind === "error" && (
         <Card>
           <Stack gap={10}>
-            <div>{feedState.message}</div>
+            <div>{wallState.message}</div>
             {isSessionExpired ? (
               <Button variant="secondary" onClick={goToLogin}>
                 Sign in
               </Button>
             ) : (
-              <Button variant="secondary" onClick={refresh}>
+              <Button variant="secondary" onClick={load}>
                 Retry
               </Button>
             )}
@@ -210,13 +255,15 @@ export default function WallPage() {
       )}
 
       {/* Empty */}
-      {feedState.kind === "ready" && resolvedUserId && filteredItems.length === 0 && (
+      {wallState.kind === "ready" && resolvedUserId && items.length === 0 && (
         <Card>
           <Stack gap={10}>
             <div style={{ fontWeight: 700 }}>No posts yet</div>
-            <div style={{ fontSize: 12, color: "#80756b" }}>This user hasn’t posted anything yet.</div>
+            <div style={{ fontSize: 12, color: "#80756b" }}>
+              This user hasn’t posted anything yet.
+            </div>
             <Stack gap={10} style={{ flexDirection: "row" }}>
-              <Button variant="secondary" onClick={refresh}>
+              <Button variant="secondary" onClick={load}>
                 Refresh
               </Button>
             </Stack>
@@ -225,11 +272,12 @@ export default function WallPage() {
       )}
 
       {/* List */}
-      {feedState.kind === "ready" && resolvedUserId && filteredItems.length > 0 && (
+      {wallState.kind === "ready" && resolvedUserId && items.length > 0 && (
         <Stack gap={12}>
-          {filteredItems.map((item) => {
+          {items.map((item) => {
             const canManage =
-              auth.status === "authenticated" && item.author.id === auth.user?.id;
+              auth.status === "authenticated" &&
+              toIdString(item.author.id) === toIdString(auth.user?.id);
 
             return (
               <Card key={item.id}>
@@ -258,10 +306,20 @@ export default function WallPage() {
                         justifyContent: "flex-end",
                       }}
                     >
-                      <Button variant="secondary" disabled title="Not available yet" aria-disabled="true">
+                      <Button
+                        variant="secondary"
+                        disabled
+                        title="Not available yet"
+                        aria-disabled="true"
+                      >
                         Edit
                       </Button>
-                      <Button variant="secondary" disabled title="Not available yet" aria-disabled="true">
+                      <Button
+                        variant="secondary"
+                        disabled
+                        title="Not available yet"
+                        aria-disabled="true"
+                      >
                         Delete
                       </Button>
                     </Stack>
