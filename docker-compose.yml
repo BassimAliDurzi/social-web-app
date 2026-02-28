@@ -15,5 +15,20 @@ services:
       timeout: 5s
       retries: 20
 
+  api:
+    build:
+      context: ./backend/social-web-api
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      APP_JWT_SECRET: base64-test-secret-base64-test-secret-base64
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/social_web
+      SPRING_DATASOURCE_USERNAME: social
+      SPRING_DATASOURCE_PASSWORD: social
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   social_web_pgdata:

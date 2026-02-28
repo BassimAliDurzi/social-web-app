@@ -83,7 +83,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- For integration tests using HttpClient / WebTestClient if needed -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
@@ -103,13 +102,11 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- FIX: H2 must NOT be runtime, otherwise Boot may pick org.h2.Driver for local/prod -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
 
     <build>
@@ -127,7 +124,9 @@
                     <systemPropertyVariables>
                         <spring.profiles.active>test</spring.profiles.active>
 
-                        <spring.datasource.url>jdbc:h2:mem:socialweb_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE</spring.datasource.url>
+                        <spring.datasource.url>
+                            jdbc:h2:mem:socialweb_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+                        </spring.datasource.url>
                         <spring.datasource.username>sa</spring.datasource.username>
                         <spring.datasource.password></spring.datasource.password>
                         <spring.datasource.driver-class-name>org.h2.Driver</spring.datasource.driver-class-name>
@@ -137,7 +136,9 @@
 
                         <spring.flyway.enabled>false</spring.flyway.enabled>
 
-                        <app.jwt.secret>test-only-secret-test-only-secret-test-only-secret</app.jwt.secret>
+                        <app.jwt.secret>
+                            test-only-secret-test-only-secret-test-only-secret
+                        </app.jwt.secret>
                     </systemPropertyVariables>
 
                     <redirectTestOutputToFile>false</redirectTestOutputToFile>
@@ -145,6 +146,13 @@
                     <trimStackTrace>false</trimStackTrace>
                 </configuration>
             </plugin>
+
+            <!-- REQUIRED for Production Deploy (Docker/Koyeb) -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
         </plugins>
     </build>
 </project>
