@@ -12,7 +12,7 @@ export type LoginResponse = {
 export type MeResponse = {
   id: number | string;
   subject: string;
-  displayName?: string; 
+  displayName?: string;
 };
 
 export type ApiErrorCode =
@@ -28,6 +28,34 @@ export type ApiError = {
   status?: number;
   details?: unknown;
 };
+
+function resolveApiBaseUrl(): string {
+  const runtimeBase = (window as any).__APP_CONFIG__?.API_BASE_URL as
+    | string
+    | undefined;
+
+  const envBase = (import.meta as any).env?.VITE_API_BASE_URL as
+    | string
+    | undefined;
+
+  const base = runtimeBase ?? envBase;
+
+  if (!base || typeof base !== "string" || base.trim().length === 0) {
+    throw {
+      code: "UNKNOWN",
+      message:
+        "Missing API base URL. Ensure config.js sets window.__APP_CONFIG__.API_BASE_URL or VITE_API_BASE_URL is provided.",
+      details: { runtimeBase, envBase },
+    } satisfies ApiError;
+  }
+
+  return base;
+}
+
+function apiUrl(path: string): string {
+  // Ensures absolute URL even if base/path have or lack slashes.
+  return new URL(path, resolveApiBaseUrl()).toString();
+}
 
 async function parseJsonSafe(res: Response): Promise<unknown> {
   const text = await res.text();
@@ -77,7 +105,7 @@ async function requestJson<TResponse>(
   init: RequestInit
 ): Promise<TResponse> {
   try {
-    const res = await fetch(path, {
+    const res = await fetch(apiUrl(path), {
       ...init,
       headers: {
         Accept: "application/json",

@@ -1,13 +1,19 @@
 import { buildAuthHeader } from "../auth/tokenStorage";
 
 function resolveApiBaseUrl(): string {
-  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  // 1) Runtime config injected by /config.js (preferred in production)
+  const runtimeUrl = (window as any).__APP_CONFIG__?.API_BASE_URL as string | undefined;
+  if (runtimeUrl && runtimeUrl.trim()) {
+    return runtimeUrl.replace(/\/+$/, "");
+  }
 
-  if (envUrl && typeof envUrl === "string") {
+  // 2) Build-time env (Vite)
+  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (envUrl && envUrl.trim()) {
     return envUrl.replace(/\/+$/, "");
   }
 
-  // Default for local dev (backend running on 8081)
+  // 3) Default for local dev (backend running on 8081)
   return "http://localhost:8081";
 }
 
@@ -89,18 +95,14 @@ export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
   return JSON.parse(text) as T;
 }
 
-// Backward-compatible (keeps existing usage working)
-// export async function httpGet<T>(path: string): Promise<T> {
-//   return requestJson<T>({ method: "GET", path, auth: false });
-// }
-
+// GET should be authenticated by default (feed/wall/me require JWT)
 export async function httpGet<T>(path: string): Promise<T> {
   return requestJson<T>({ method: "GET", path });
 }
 
-// New helpers (auth on by default)
+// Optional explicit helper if you want to make intent obvious in call sites
 export async function httpGetAuth<T>(path: string): Promise<T> {
-  return requestJson<T>({ method: "GET", path });
+  return requestJson<T>({ method: "GET", path, auth: true });
 }
 
 export async function httpPost<T>(path: string, body?: unknown): Promise<T> {
