@@ -90,8 +90,12 @@ export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
 }
 
 // Backward-compatible (keeps existing usage working)
+// export async function httpGet<T>(path: string): Promise<T> {
+//   return requestJson<T>({ method: "GET", path, auth: false });
+// }
+
 export async function httpGet<T>(path: string): Promise<T> {
-  return requestJson<T>({ method: "GET", path, auth: false });
+  return requestJson<T>({ method: "GET", path });
 }
 
 // New helpers (auth on by default)
