@@ -1,9 +1,13 @@
 import { buildAuthHeader } from "../auth/tokenStorage";
 
 function resolveApiBaseUrl(): string {
-  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  const runtimeUrl = (window as any).__APP_CONFIG__?.API_BASE_URL as string | undefined;
+  if (runtimeUrl && runtimeUrl.trim()) {
+    return runtimeUrl.replace(/\/+$/, "");
+  }
 
-  if (envUrl && typeof envUrl === "string") {
+  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (envUrl && envUrl.trim()) {
     return envUrl.replace(/\/+$/, "");
   }
 
