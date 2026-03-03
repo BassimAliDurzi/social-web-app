@@ -12,6 +12,7 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpMethod;
@@ -48,7 +49,12 @@ public class SecurityConfig {
     @Value("${APP_JWT_SECRET:}")
     private String appJwtSecret;
 
+    /**
+     * ✅ Chain #1 (highest priority): Auth endpoints must be public and must NOT be
+     * forced through the OAuth2 Resource Server (Bearer token) filter.
+     */
     @Bean
+    @Order(1)
     SecurityFilterChain authChain(HttpSecurity http) throws Exception {
         http
                 .securityMatcher("/api/auth/**")
@@ -56,10 +62,15 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+
         return http.build();
     }
 
+    /**
+     * ✅ Chain #2: Everything else is protected by JWT (Bearer token).
+     */
     @Bean
+    @Order(2)
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
@@ -67,12 +78,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // ✅ This makes Spring Security validate Bearer tokens for protected endpoints.
+                // ✅ Validate Bearer tokens for protected endpoints.
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 );
@@ -138,15 +148,6 @@ public class SecurityConfig {
 
         cfg.setAllowCredentials(true);
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-//        cfg.setAllowedHeaders(List.of(
-//                "Authorization",
-//                "Content-Type",
-//                "Accept",
-//                "X-Requested-With",
-//                "Origin",
-//                "Access-Control-Request-Method",
-//                "Access-Control-Request-Headers"
-//        ));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setExposedHeaders(List.of("Authorization"));
 
