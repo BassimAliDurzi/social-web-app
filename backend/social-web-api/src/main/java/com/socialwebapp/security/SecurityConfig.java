@@ -49,6 +49,17 @@ public class SecurityConfig {
     private String appJwtSecret;
 
     @Bean
+    SecurityFilterChain authChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/api/auth/**")
+                .cors(Customizer.withDefaults())
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+        return http.build();
+    }
+
+    @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
