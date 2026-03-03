@@ -127,15 +127,16 @@ public class SecurityConfig {
 
         cfg.setAllowCredentials(true);
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cfg.setAllowedHeaders(List.of(
-                "Authorization",
-                "Content-Type",
-                "Accept",
-                "X-Requested-With",
-                "Origin",
-                "Access-Control-Request-Method",
-                "Access-Control-Request-Headers"
-        ));
+//        cfg.setAllowedHeaders(List.of(
+//                "Authorization",
+//                "Content-Type",
+//                "Accept",
+//                "X-Requested-With",
+//                "Origin",
+//                "Access-Control-Request-Method",
+//                "Access-Control-Request-Headers"
+//        ));
+        cfg.setAllowedHeaders(List.of("*"));
         cfg.setExposedHeaders(List.of("Authorization"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
