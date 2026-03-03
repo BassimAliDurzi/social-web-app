@@ -57,7 +57,7 @@ public class SecurityConfig {
     @Order(1)
     SecurityFilterChain authChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/api/auth/**")
+                .securityMatcher("/api/auth/login", "/api/auth/register")
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
